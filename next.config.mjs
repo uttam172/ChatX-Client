@@ -1,6 +1,5 @@
-import type { NextConfig } from "next";
-
-const nextConfig: NextConfig = {
+/** @type {import('next').NextConfig} */
+const nextConfig = {
   // Allow LAN IP to access Next.js dev resources (HMR, webpack etc.)
   // Required when opening the app from another PC on the same network
   allowedDevOrigins: [

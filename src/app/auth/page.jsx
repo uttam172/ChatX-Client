@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { MessageCircle, ShieldCheck, Mail, Lock, User, ArrowRight, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { generateE2EEKeys, storePrivateKey } from "@/utils/crypto";
+import { generateE2EEKeys, storePrivateKey, encryptPrivateKeyWithPassword, decryptPrivateKeyWithPassword } from "@/utils/crypto";
 
 export default function AuthPage() {
   const router = useRouter();
@@ -19,7 +19,7 @@ export default function AuthPage() {
     hikeId: "",
   });
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError("");
@@ -28,11 +28,11 @@ export default function AuthPage() {
       const endpoint = isLogin ? "/api/auth/login" : "/api/auth/signup";
       const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
       
-      let payload: any = isLogin
+      let payload = isLogin
         ? { identifier: formData.identifier, password: formData.password }
         : { email: formData.email, password: formData.password };
 
-      let localPrivateKey: CryptoKey | null = null;
+      let localPrivateKey = null;
 
       if (!isLogin) {
         // Generating E2EE Keys during signup
@@ -40,6 +40,10 @@ export default function AuthPage() {
         payload.hikeId = formData.hikeId;
         payload.publicKey = keys.publicKeyBase64;
         localPrivateKey = keys.privateKey;
+        
+        // Encrypt and back up the private key using user password
+        const backupEncrypted = await encryptPrivateKeyWithPassword(keys.privateKey, formData.password);
+        payload.encryptedPrivateKey = backupEncrypted;
       }
 
       const res = await fetch(`${API_URL}${endpoint}`, {
@@ -61,11 +65,18 @@ export default function AuthPage() {
       // Store private key securely in IndexedDB on Signup
       if (!isLogin && localPrivateKey) {
         await storePrivateKey(data.user.hikeId, localPrivateKey);
+      } else if (isLogin && data.user?.encryptedPrivateKey) {
+        try {
+          const decryptedKey = await decryptPrivateKeyWithPassword(data.user.encryptedPrivateKey, formData.password);
+          await storePrivateKey(data.user.hikeId, decryptedKey);
+        } catch (err) {
+          console.error("Failed to restore E2EE private key on login", err);
+        }
       }
 
       // Redirect to Chat Workspace
       router.push("/chat");
-    } catch (err: any) {
+    } catch (err) {
       setError(err.message);
     } finally {
       setLoading(false);

@@ -1,21 +1,21 @@
 /**
- * crypto.ts
+ * crypto.js
  * Web Crypto API implementation for E2EE (End-to-End Encryption)
  */
 
-const RSA_ALGO: RsaHashedKeyGenParams = {
+const RSA_ALGO = {
   name: 'RSA-OAEP',
   modulusLength: 2048,
   publicExponent: new Uint8Array([1, 0, 1]),
   hash: 'SHA-256',
 };
 
-const RSA_IMPORT_ALGO: RsaHashedImportParams = {
+const RSA_IMPORT_ALGO = {
   name: 'RSA-OAEP',
   hash: 'SHA-256',
 };
 
-const AES_ALGO: AesKeyGenParams = {
+const AES_ALGO = {
   name: 'AES-GCM',
   length: 256,
 };
@@ -26,7 +26,7 @@ const AES_ALGO: AesKeyGenParams = {
 const DB_NAME = 'ChatX_KeyStore';
 const STORE_NAME = 'keys';
 
-const getDB = (): Promise<IDBDatabase> => {
+const getDB = () => {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, 1);
     request.onupgradeneeded = () => {
@@ -37,7 +37,7 @@ const getDB = (): Promise<IDBDatabase> => {
   });
 };
 
-export const storePrivateKey = async (hikeId: string, privateKey: CryptoKey): Promise<void> => {
+export const storePrivateKey = async (hikeId, privateKey) => {
   const db = await getDB();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_NAME, 'readwrite');
@@ -48,15 +48,29 @@ export const storePrivateKey = async (hikeId: string, privateKey: CryptoKey): Pr
   });
 };
 
-export const getPrivateKey = async (hikeId: string): Promise<CryptoKey | null> => {
+export const getPrivateKey = async (hikeId) => {
   const db = await getDB();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE_NAME, 'readonly');
-    const store = tx.objectStore(STORE_NAME);
-    const request = store.get(hikeId);
-    request.onsuccess = () => resolve((request.result as CryptoKey) || null);
-    request.onerror = () => reject(request.error);
-  });
+  const cleanId = hikeId.startsWith('@') ? hikeId.slice(1) : hikeId;
+  const withAt = `@${cleanId}`;
+
+  const tryGet = (id) => {
+    return new Promise((resolve) => {
+      const tx = db.transaction(STORE_NAME, 'readonly');
+      const store = tx.objectStore(STORE_NAME);
+      const request = store.get(id);
+      request.onsuccess = () => resolve(request.result || null);
+      request.onerror = () => resolve(null);
+    });
+  };
+
+  let key = await tryGet(cleanId);
+  if (!key) {
+    key = await tryGet(withAt);
+  }
+  if (!key) {
+    key = await tryGet(hikeId);
+  }
+  return key;
 };
 
 // ---------------------------------------------------------
@@ -68,7 +82,7 @@ export const getPrivateKey = async (hikeId: string): Promise<CryptoKey | null> =
  * The public key is exported to base64 to send to the server.
  * The private key stays in the browser (stored in IndexedDB).
  */
-export const generateE2EEKeys = async (): Promise<{ publicKeyBase64: string; privateKey: CryptoKey }> => {
+export const generateE2EEKeys = async () => {
   const keyPair = await window.crypto.subtle.generateKey(RSA_ALGO, true, ['encrypt', 'decrypt']);
 
   // Export public key to base64 (SPKI format)
@@ -81,7 +95,7 @@ export const generateE2EEKeys = async (): Promise<{ publicKeyBase64: string; pri
   };
 };
 
-export const importPublicKey = async (base64Key: string): Promise<CryptoKey> => {
+export const importPublicKey = async (base64Key) => {
   const binaryDer = base64ToArrayBuffer(base64Key);
   return await window.crypto.subtle.importKey('spki', binaryDer, RSA_IMPORT_ALGO, true, ['encrypt']);
 };
@@ -90,21 +104,14 @@ export const importPublicKey = async (base64Key: string): Promise<CryptoKey> => 
 // Encryption / Decryption routines
 // ---------------------------------------------------------
 
-export interface EncryptedPayload {
-  ciphertext: string;
-  iv: string;
-  encryptedAesKeySender: string;
-  encryptedAesKeyReceiver: string;
-}
-
 /**
  * Encrypts a plaintext message for a receiver using a hybrid RSA+AES scheme.
  */
 export const encryptMessage = async (
-  text: string,
-  receiverPublicKeyBase64: string,
-  senderPublicKeyBase64: string
-): Promise<EncryptedPayload> => {
+  text,
+  receiverPublicKeyBase64,
+  senderPublicKeyBase64
+) => {
   const encoder = new TextEncoder();
   const data = encoder.encode(text);
 
@@ -143,7 +150,7 @@ export const encryptMessage = async (
 
   return {
     ciphertext: arrayBufferToBase64(encryptedContentBuffer),
-    iv: arrayBufferToBase64(iv.buffer as ArrayBuffer), // Fix: pass iv.buffer (ArrayBuffer), not iv (Uint8Array)
+    iv: arrayBufferToBase64(iv.buffer), // Fix: pass iv.buffer (ArrayBuffer)
     encryptedAesKeyReceiver: arrayBufferToBase64(encryptedAesKeyReceiverBuffer),
     encryptedAesKeySender: arrayBufferToBase64(encryptedAesKeySenderBuffer),
   };
@@ -153,11 +160,11 @@ export const encryptMessage = async (
  * Decrypts a received message using the user's private RSA key.
  */
 export const decryptMessage = async (
-  encryptedAesKeyBase64: string,
-  ciphertextBase64: string,
-  ivBase64: string,
-  privateKey: CryptoKey
-): Promise<string> => {
+  encryptedAesKeyBase64,
+  ciphertextBase64,
+  ivBase64,
+  privateKey
+) => {
   // 1. Decrypt the AES key using our RSA private key
   const encryptedAesKeyBuffer = base64ToArrayBuffer(encryptedAesKeyBase64);
   const rawAesKey = await window.crypto.subtle.decrypt(
@@ -192,7 +199,7 @@ export const decryptMessage = async (
 // Utility Functions
 // ---------------------------------------------------------
 
-function arrayBufferToBase64(buffer: ArrayBuffer): string {
+function arrayBufferToBase64(buffer) {
   const bytes = new Uint8Array(buffer);
   let binary = '';
   for (let i = 0; i < bytes.byteLength; i++) {
@@ -201,7 +208,7 @@ function arrayBufferToBase64(buffer: ArrayBuffer): string {
   return btoa(binary);
 }
 
-function base64ToArrayBuffer(base64: string): ArrayBuffer {
+function base64ToArrayBuffer(base64) {
   // Sanitize: strip whitespace and any non-base64 characters
   const cleaned = base64.replace(/\s/g, '');
   // Validate base64 before decoding
@@ -213,5 +220,85 @@ function base64ToArrayBuffer(base64: string): ArrayBuffer {
   for (let i = 0; i < binaryString.length; i++) {
     bytes[i] = binaryString.charCodeAt(i);
   }
-  return bytes.buffer as ArrayBuffer;
+  return bytes.buffer;
 }
+
+/**
+ * Encrypts the Private Key using the user's password so it can be backed up on the server.
+ */
+export const encryptPrivateKeyWithPassword = async (
+  privateKey,
+  password
+) => {
+  // 1. Export the private key to PKCS#8 format (der array buffer)
+  const exported = await window.crypto.subtle.exportKey('pkcs8', privateKey);
+
+  // 2. Generate a key from password using SHA-256
+  const encoder = new TextEncoder();
+  const passwordBytes = encoder.encode(password);
+  const hashBuffer = await window.crypto.subtle.digest('SHA-256', passwordBytes);
+  const aesKey = await window.crypto.subtle.importKey(
+    'raw',
+    hashBuffer,
+    { name: 'AES-GCM' },
+    false,
+    ['encrypt', 'decrypt']
+  );
+
+  // 3. Encrypt the exported private key buffer
+  const iv = new Uint8Array(12);
+  window.crypto.getRandomValues(iv);
+  const encrypted = await window.crypto.subtle.encrypt(
+    { name: 'AES-GCM', iv },
+    aesKey,
+    exported
+  );
+
+  // 4. Return unified base64 payload: IV + Ciphertext
+  const ivBase64 = arrayBufferToBase64(iv.buffer);
+  const ciphertextBase64 = arrayBufferToBase64(encrypted);
+  return `${ivBase64}:${ciphertextBase64}`;
+};
+
+/**
+ * Decrypts the backed-up Private Key using the user's password.
+ */
+export const decryptPrivateKeyWithPassword = async (
+  encryptedPayload,
+  password
+) => {
+  const [ivBase64, ciphertextBase64] = encryptedPayload.split(':');
+  const iv = new Uint8Array(base64ToArrayBuffer(ivBase64));
+  const ciphertext = base64ToArrayBuffer(ciphertextBase64);
+
+  // 1. Generate key from password using SHA-256
+  const encoder = new TextEncoder();
+  const passwordBytes = encoder.encode(password);
+  const hashBuffer = await window.crypto.subtle.digest('SHA-256', passwordBytes);
+  const aesKey = await window.crypto.subtle.importKey(
+    'raw',
+    hashBuffer,
+    { name: 'AES-GCM' },
+    false,
+    ['encrypt', 'decrypt']
+  );
+
+  // 2. Decrypt the PKCS#8 buffer
+  const decrypted = await window.crypto.subtle.decrypt(
+    { name: 'AES-GCM', iv },
+    aesKey,
+    ciphertext
+  );
+
+  // 3. Re-import the Private Key
+  return await window.crypto.subtle.importKey(
+    'pkcs8',
+    decrypted,
+    {
+      name: 'RSA-OAEP',
+      hash: 'SHA-256',
+    },
+    true,
+    ['decrypt']
+  );
+};
