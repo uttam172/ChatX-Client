@@ -15,7 +15,13 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 export default function ChatPage() {
   const router = useRouter();
 
-  const [currentUser, setCurrentUser] = useState(null);
+  const [currentUser, setCurrentUser] = useState(() => {
+    if (typeof window !== "undefined") {
+      const user = localStorage.getItem("user");
+      return user ? JSON.parse(user) : null;
+    }
+    return null;
+  });
   const [activeChat, setActiveChat] = useState(null);
   const [recentChats, setRecentChats] = useState([]);
   const [allUsers, setAllUsers] = useState([]);
@@ -149,9 +155,12 @@ export default function ChatPage() {
     }
 
     const parsedUser = JSON.parse(user);
-    setCurrentUser(parsedUser);
-    checkPrivateKey(parsedUser.hikeId);
-    fetchUsers();
+    getPrivateKey(parsedUser.hikeId)
+      .then((key) => setHasPrivateKey(!!key))
+      .catch(() => setHasPrivateKey(false));
+    setTimeout(() => {
+      fetchUsers();
+    }, 0);
     initiateSocketConnection(token);
 
     const socket = getSocket();
@@ -243,7 +252,6 @@ export default function ChatPage() {
     if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
 
     if (!searchQuery.trim()) {
-      setSearchResults([]);
       return;
     }
 
@@ -551,7 +559,13 @@ export default function ChatPage() {
             <input
               type="text"
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => {
+                const val = e.target.value;
+                setSearchQuery(val);
+                if (!val.trim()) {
+                  setSearchResults([]);
+                }
+              }}
               placeholder="Search by Hike ID or email…"
               className="w-full pl-9 pr-8 py-2 rounded-xl bg-[var(--color-muted)] text-[var(--color-foreground)] focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-sm"
             />
@@ -942,7 +956,7 @@ export default function ChatPage() {
                           ⚠️ Private key missing from this browser!
                         </p>
                         <p className="text-[11px] text-[var(--color-muted-foreground)] leading-normal">
-                          You won't be able to decrypt past or future messages on this browser unless you regenerate your encryption keys or restore from a password-protected backup.
+                          You won&apos;t be able to decrypt past or future messages on this browser unless you regenerate your encryption keys or restore from a password-protected backup.
                         </p>
                         <button
                           onClick={handleRegenerateKeys}
@@ -957,7 +971,7 @@ export default function ChatPage() {
                           ✓ Secure E2EE Key Active
                         </p>
                         <p className="text-[11px] text-[var(--color-muted-foreground)] leading-normal">
-                          Your private key is securely stored in this browser's IndexedDB. If you are having issues decrypting messages or logged in on a new device, you can reset your key pair below.
+                          Your private key is securely stored in this browser&apos;s IndexedDB. If you are having issues decrypting messages or logged in on a new device, you can reset your key pair below.
                         </p>
                         <button
                           onClick={handleRegenerateKeys}
