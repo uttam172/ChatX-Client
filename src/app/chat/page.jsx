@@ -12,6 +12,20 @@ import { encryptMessage, decryptMessage, getPrivateKey, generateE2EEKeys, storeP
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
+const getCleanId = (val) => {
+  if (!val) return "";
+  if (typeof val === "string") return val.trim().toLowerCase();
+  if (typeof val === "object") {
+    const rawVal = val._id || val.id || val;
+    return (rawVal ? rawVal.toString() : "").trim().toLowerCase();
+  }
+  return val.toString().trim().toLowerCase();
+};
+
+const isSameId = (id1, id2) => {
+  return getCleanId(id1) === getCleanId(id2);
+};
+
 export default function ChatPage() {
   const router = useRouter();
 
@@ -29,8 +43,9 @@ export default function ChatPage() {
 
   // Search states
   const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState([]);
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const [isSearching, setIsSearching] = useState(false);
+  const [decryptedLastMessages, setDecryptedLastMessages] = useState({});
 
   // Vault states
   const [isVaultOpen, setIsVaultOpen] = useState(false);
@@ -51,9 +66,15 @@ export default function ChatPage() {
   const [pinSuccess, setPinSuccess] = useState(false);
   const [copiedKey, setCopiedKey] = useState(false);
   const [hasPrivateKey, setHasPrivateKey] = useState(true);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setTimeout(() => {
+      setMounted(true);
+    }, 0);
+  }, []);
 
   const messagesEndRef = useRef(null);
-  const searchTimeoutRef = useRef(null);
 
   // Fetch all users and recent chats from backend
   const fetchUsers = useCallback(async () => {
@@ -111,20 +132,32 @@ export default function ChatPage() {
       const decrypted = await Promise.all(
         historyMessages.map(async (msg) => {
           if (msg.isNudge) return { ...msg, text: "⚡ Sent a Nudge!" };
-          const isMine = msg.senderId === parsedUser.id || msg.senderId === parsedUser._id;
-          const keyToUse = isMine ? msg.encryptedAesKeySender : msg.encryptedAesKeyReceiver;
+          const isMine = isSameId(msg.senderId, parsedUser);
+          const primaryKey = isMine ? msg.encryptedAesKeySender : msg.encryptedAesKeyReceiver;
+          const fallbackKey = isMine ? msg.encryptedAesKeyReceiver : msg.encryptedAesKeySender;
 
           try {
             const decryptedText = await decryptMessage(
-              keyToUse,
+              primaryKey,
               msg.ciphertext,
               msg.iv,
               privateKey
             );
             return { ...msg, text: decryptedText };
           } catch (err) {
-            console.error("Failed to decrypt history message", err);
-            return { ...msg, text: "🔒 [Could not decrypt]" };
+            // Robust dual-key fallback to prevent E2EE ID mismatch OperationErrors
+            try {
+              const decryptedText = await decryptMessage(
+                fallbackKey,
+                msg.ciphertext,
+                msg.iv,
+                privateKey
+              );
+              return { ...msg, text: decryptedText };
+            } catch (fallbackErr) {
+              console.error("Failed to decrypt history message with both keys", { err, fallbackErr });
+              return { ...msg, text: "🔒 [Could not decrypt]" };
+            }
           }
         })
       );
@@ -144,6 +177,84 @@ export default function ChatPage() {
       setHasPrivateKey(false);
     }
   }, []);
+  // Format message time like WhatsApp
+  const formatMessageTime = useCallback((dateStr) => {
+    if (!dateStr) return "";
+    const date = new Date(dateStr);
+    const now = new Date();
+    const diffTime = Math.abs(now - date);
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    if (date.toDateString() === now.toDateString()) {
+      return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    } else if (diffDays === 1 || (diffDays === 2 && now.getDate() !== date.getDate())) {
+      return "Yesterday";
+    } else if (diffDays < 7) {
+      return date.toLocaleDateString([], { weekday: "long" });
+    } else {
+      return date.toLocaleDateString([], { month: "short", day: "numeric" });
+    }
+  }, []);
+
+  // Decrypt all recent chats' last messages asynchronously
+  useEffect(() => {
+    const decryptAll = async () => {
+      if (!currentUser?.hikeId || recentChats.length === 0) return;
+      const privateKey = await getPrivateKey(currentUser.hikeId);
+      if (!privateKey) return;
+
+      for (const chat of recentChats) {
+        const msg = chat.latestMessage;
+        if (!msg) continue;
+
+        let alreadyDecrypted = false;
+        setDecryptedLastMessages(prev => {
+          if (prev[chat._id] && prev[chat._id].msgId === msg._id) {
+            alreadyDecrypted = true;
+          }
+          return prev;
+        });
+
+        if (alreadyDecrypted) continue;
+
+        if (msg.isNudge) {
+          setDecryptedLastMessages(prev => ({
+            ...prev,
+            [chat._id]: { text: "⚡ Sent a Nudge!", msgId: msg._id }
+          }));
+          continue;
+        }
+
+        const isMine = isSameId(msg.senderId, currentUser);
+        const primaryKey = isMine ? msg.encryptedAesKeySender : msg.encryptedAesKeyReceiver;
+        const fallbackKey = isMine ? msg.encryptedAesKeyReceiver : msg.encryptedAesKeySender;
+
+        try {
+          const decText = await decryptMessage(primaryKey, msg.ciphertext, msg.iv, privateKey);
+          setDecryptedLastMessages(prev => ({
+            ...prev,
+            [chat._id]: { text: decText, msgId: msg._id }
+          }));
+        } catch {
+          // Robust dual-key fallback to prevent E2EE ID mismatch OperationErrors in sidebar
+          try {
+            const decText = await decryptMessage(fallbackKey, msg.ciphertext, msg.iv, privateKey);
+            setDecryptedLastMessages(prev => ({
+              ...prev,
+              [chat._id]: { text: decText, msgId: msg._id }
+            }));
+          } catch {
+            setDecryptedLastMessages(prev => ({
+              ...prev,
+              [chat._id]: { text: "🔒 [Could not decrypt]", msgId: msg._id }
+            }));
+          }
+        }
+      }
+    };
+
+    decryptAll();
+  }, [recentChats, currentUser]);
 
   // ── Auth & Socket setup ─────────────────────────────────
   useEffect(() => {
@@ -167,23 +278,28 @@ export default function ChatPage() {
 
     socket?.on("receive_message", async (msg) => {
       // Find the user details in allUsers
-      const contactId = msg.senderId === parsedUser.id || msg.senderId === parsedUser._id ? msg.receiverId : msg.senderId;
-      let contactUser = allUsersRef.current.find(u => u._id === contactId);
+      const contactId = isSameId(msg.senderId, parsedUser) ? msg.receiverId : msg.senderId;
+      let contactUser = allUsersRef.current.find(u => isSameId(u._id, contactId));
       if (!contactUser) {
         await fetchUsers();
-        contactUser = allUsersRef.current.find(u => u._id === contactId);
+        contactUser = allUsersRef.current.find(u => isSameId(u._id, contactId));
       }
       if (contactUser) {
         setRecentChats(prev => {
-          const filtered = prev.filter(c => c._id !== contactId);
-          return [contactUser, ...filtered];
+          const filtered = prev.filter(c => !isSameId(c._id, contactId));
+          const updatedContact = {
+            ...contactUser,
+            latestMessage: msg
+          };
+          return [updatedContact, ...filtered];
         });
       }
 
       if (msg.isNudge) {
         setNudgeShake(true);
         try {
-          const audio = new Audio("https://actions.google.com/sounds/v1/alarms/beep_short.ogg");
+          // const audio = new Audio("https://actions.google.com/sounds/v1/alarms/beep_short.ogg");
+          const audio = new Audio("../../media/bell-notification.wav");
           audio.play();
         } catch {}
         setTimeout(() => setNudgeShake(false), 800);
@@ -193,32 +309,46 @@ export default function ChatPage() {
       try {
         const privateKey = await getPrivateKey(parsedUser.hikeId);
         if (privateKey) {
-          const decryptedText = await decryptMessage(
-            msg.encryptedAesKeyReceiver,
-            msg.ciphertext,
-            msg.iv,
-            privateKey
-          );
+          let decryptedText;
+          try {
+            decryptedText = await decryptMessage(
+              msg.encryptedAesKeyReceiver,
+              msg.ciphertext,
+              msg.iv,
+              privateKey
+            );
+          } catch {
+            decryptedText = await decryptMessage(
+              msg.encryptedAesKeySender,
+              msg.ciphertext,
+              msg.iv,
+              privateKey
+            );
+          }
           setMessages(prev => [...prev, { ...msg, text: decryptedText }]);
         }
       } catch (err) {
-        console.error("Failed to decrypt received message", err);
+        console.error("Failed to decrypt received message with both keys", err);
         setMessages(prev => [...prev, { ...msg, text: "🔒 [Could not decrypt]" }]);
       }
     });
 
     socket?.on("message_sent", async (msg) => {
       // Move contact to top of recent list
-      const contactId = msg.senderId === parsedUser.id || msg.senderId === parsedUser._id ? msg.receiverId : msg.senderId;
-      let contactUser = allUsersRef.current.find(u => u._id === contactId);
+      const contactId = isSameId(msg.senderId, parsedUser) ? msg.receiverId : msg.senderId;
+      let contactUser = allUsersRef.current.find(u => isSameId(u._id, contactId));
       if (!contactUser) {
         await fetchUsers();
-        contactUser = allUsersRef.current.find(u => u._id === contactId);
+        contactUser = allUsersRef.current.find(u => isSameId(u._id, contactId));
       }
       if (contactUser) {
         setRecentChats(prev => {
-          const filtered = prev.filter(c => c._id !== contactId);
-          return [contactUser, ...filtered];
+          const filtered = prev.filter(c => !isSameId(c._id, contactId));
+          const updatedContact = {
+            ...contactUser,
+            latestMessage: msg
+          };
+          return [updatedContact, ...filtered];
         });
       }
 
@@ -226,16 +356,26 @@ export default function ChatPage() {
       try {
         const privateKey = await getPrivateKey(parsedUser.hikeId);
         if (privateKey) {
-          const decryptedText = await decryptMessage(
-            msg.encryptedAesKeySender,
-            msg.ciphertext,
-            msg.iv,
-            privateKey
-          );
+          let decryptedText;
+          try {
+            decryptedText = await decryptMessage(
+              msg.encryptedAesKeySender,
+              msg.ciphertext,
+              msg.iv,
+              privateKey
+            );
+          } catch {
+            decryptedText = await decryptMessage(
+              msg.encryptedAesKeyReceiver,
+              msg.ciphertext,
+              msg.iv,
+              privateKey
+            );
+          }
           setMessages(prev => [...prev, { ...msg, text: decryptedText }]);
         }
       } catch (err) {
-        console.error("Failed to decrypt sent message", err);
+        console.error("Failed to decrypt sent message with both keys", err);
       }
     });
 
@@ -247,38 +387,22 @@ export default function ChatPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // ── Live User Search (debounced) ────────────────────────
+  // ── Debounce Search Query ──────────────────────────────
   useEffect(() => {
-    if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+    const handler = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+      setIsSearching(false);
+    }, 300);
 
-    if (!searchQuery.trim()) {
-      return;
-    }
-
-    searchTimeoutRef.current = setTimeout(async () => {
-      setIsSearching(true);
-      try {
-        const token = localStorage.getItem("token");
-        const res = await fetch(`${API_URL}/api/users/search?q=${encodeURIComponent(searchQuery)}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        const data = await res.json();
-        setSearchResults(data);
-      } catch (err) {
-        console.error("Search failed", err);
-      } finally {
-        setIsSearching(false);
-      }
-    }, 400);
-
-    return () => { if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current); };
+    return () => {
+      clearTimeout(handler);
+    };
   }, [searchQuery]);
 
   // ── Select a chat contact ───────────────────────────────
   const selectChat = useCallback((user) => {
     setActiveChat(user);
     setSearchQuery("");
-    setSearchResults([]);
     
     // Add to recent chats list if not already there (appended to end to preserve sorting until message is sent)
     setRecentChats(prev => {
@@ -477,6 +601,45 @@ export default function ChatPage() {
     }
   };
 
+  const handleRestorePrivateKey = async () => {
+    if (!currentUser?.hikeId) return;
+    const password = prompt(
+      "Please enter your ChatX account password to restore your secure E2EE private key from the server backup:"
+    );
+    if (!password) return;
+
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch(`${API_URL}/api/users/me`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error("Failed to fetch user backup profile");
+      const meData = await res.json();
+
+      if (!meData.encryptedPrivateKey) {
+        alert("No private key backup found on the server. Please regenerate your E2EE keys in Settings.");
+        return;
+      }
+
+      const decryptedKey = await decryptPrivateKeyWithPassword(meData.encryptedPrivateKey, password);
+      await storePrivateKey(currentUser.hikeId, decryptedKey);
+      
+      setHasPrivateKey(true);
+      alert("E2EE Private Key successfully restored! All your messages will now be decrypted.");
+      
+      // Refresh current chat history to decrypt it instantly
+      if (activeChat) {
+        fetchHistory(activeChat, currentUser);
+      }
+      
+      // Refresh user lists to decrypt sidebar last messages
+      fetchUsers();
+    } catch (err) {
+      console.error("Failed to restore private key:", err);
+      alert("Restoration failed: Please check if your password is correct.");
+    }
+  };
+
   // Unified user list sorted like WhatsApp: recent conversation partners at the top, others below
   const sortedUnifiedUsers = React.useMemo(() => {
     const recentIds = recentChats.map(c => c._id);
@@ -489,6 +652,26 @@ export default function ChatPage() {
 
     return [...activeChats, ...otherUsers];
   }, [allUsers, recentChats]);
+
+  // Filter unified users based on the debounced search query
+  const filteredUsers = React.useMemo(() => {
+    if (!debouncedSearchQuery.trim()) {
+      return sortedUnifiedUsers;
+    }
+    const query = debouncedSearchQuery.toLowerCase().replace(/^@/, '');
+    return sortedUnifiedUsers.filter(user => 
+      user.hikeId.toLowerCase().includes(query) || 
+      (user.email && user.email.toLowerCase().includes(query))
+    );
+  }, [sortedUnifiedUsers, debouncedSearchQuery]);
+
+  if (!mounted) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center bg-[var(--color-background)]">
+        <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-screen w-full bg-[var(--color-background)] overflow-hidden">
@@ -560,17 +743,14 @@ export default function ChatPage() {
               type="text"
               value={searchQuery}
               onChange={(e) => {
-                const val = e.target.value;
-                setSearchQuery(val);
-                if (!val.trim()) {
-                  setSearchResults([]);
-                }
+                setSearchQuery(e.target.value);
+                setIsSearching(true);
               }}
               placeholder="Search by Hike ID or email…"
               className="w-full pl-9 pr-8 py-2 rounded-xl bg-[var(--color-muted)] text-[var(--color-foreground)] focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-sm"
             />
             {searchQuery && (
-              <button onClick={() => { setSearchQuery(""); setSearchResults([]); }}
+              <button onClick={() => { setSearchQuery(""); setDebouncedSearchQuery(""); setIsSearching(false); }}
                 className="absolute right-2.5 top-2.5 text-[var(--color-muted-foreground)] hover:text-[var(--color-foreground)]">
                 <X className="w-4 h-4" />
               </button>
@@ -586,94 +766,78 @@ export default function ChatPage() {
             </div>
           )}
 
-          {/* Search Results */}
-          <AnimatePresence>
-            {searchResults.length > 0 && (
-              <div className="mb-2">
-                <p className="text-xs text-[var(--color-muted-foreground)] font-medium px-2 mb-1 uppercase tracking-wide">
-                  Search Results
-                </p>
-                {searchResults.map((user) => (
-                  <motion.div
-                    key={user._id}
-                    initial={{ opacity: 0, y: 6 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0 }}
-                    onClick={() => selectChat(user)}
-                    className="p-3 flex items-center gap-3 rounded-xl cursor-pointer hover:bg-[var(--color-muted)] transition-colors"
-                  >
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center text-white font-bold">
-                      {user.hikeId.charAt(0).toUpperCase()}
-                    </div>
-                    <div>
-                      <p className="font-semibold text-sm text-[var(--color-foreground)]">@{user.hikeId}</p>
-                      <p className="text-xs text-[var(--color-muted-foreground)]">
-                        {user.publicKey ? "🔑 E2EE ready" : "⚠️ No public key"}
-                      </p>
-                    </div>
-                  </motion.div>
-                ))}
+          {/* Unified WhatsApp-style user list with client-side debounced search */}
+          <div className="space-y-1">
+            {filteredUsers.length > 0 ? (
+              <AnimatePresence>
+                {filteredUsers.map((user) => {
+                  const latestMsg = user.latestMessage;
+                  const isActive = activeChat?._id === user._id;
+
+                  return (
+                    <motion.div
+                      key={user._id}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, scale: 0.95 }}
+                      whileHover={{ scale: 1.01 }}
+                      whileTap={{ scale: 0.99 }}
+                      onClick={() => selectChat(user)}
+                      className={`p-3 flex items-center gap-3 rounded-xl cursor-pointer transition-all ${
+                        isActive
+                          ? "bg-indigo-500/15 border-l-4 border-indigo-600 pl-2"
+                          : "hover:bg-[var(--color-muted)]/50"
+                      }`}
+                    >
+                      {/* Dynamic DiceBear Profile Avatar */}
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={`https://api.dicebear.com/7.x/initials/svg?seed=${user.hikeId}&radius=50&backgroundType=gradientLinear`}
+                        alt={user.hikeId}
+                        className="w-11 h-11 rounded-full object-cover border border-[var(--color-border)] shadow-sm flex-shrink-0"
+                      />
+                      
+                      {/* User Info & Last Message */}
+                      <div className="flex-1 min-w-0 overflow-hidden">
+                        <div className="flex justify-between items-baseline mb-0.5">
+                          <p className="font-semibold text-sm text-[var(--color-foreground)] truncate">
+                            @{user.hikeId}
+                          </p>
+                          {latestMsg && (
+                            <span className="text-[10px] text-[var(--color-muted-foreground)] flex-shrink-0 font-medium ml-1">
+                              {formatMessageTime(latestMsg.createdAt)}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-[var(--color-muted-foreground)] truncate pr-2">
+                          {latestMsg ? (
+                            decryptedLastMessages[user._id]?.text || "🔒 [Decrypting...]"
+                          ) : (
+                            "No messages yet. Say hi! 👋"
+                          )}
+                        </p>
+                      </div>
+                    </motion.div>
+                  );
+                })}
+              </AnimatePresence>
+            ) : (
+              <div className="flex flex-col items-center justify-center h-48 text-[var(--color-muted-foreground)] px-4 text-center">
+                <Search className="w-10 h-10 opacity-20 mb-3" />
+                {searchQuery ? (
+                  <>
+                    <p className="text-sm font-medium">No users found</p>
+                    <p className="text-xs mt-1 opacity-70">No matching user details for &quot;{searchQuery}&quot;</p>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-sm font-medium">Explore & chat with users</p>
+                    <p className="text-xs mt-1 opacity-70">No other users signed up yet</p>
+                  </>
+                )}
               </div>
             )}
-          </AnimatePresence>
-
-          {/* No search results */}
-          {!isSearching && searchQuery && searchResults.length === 0 && (
-            <p className="text-center text-sm text-[var(--color-muted-foreground)] py-8">
-              No users found for &quot;{searchQuery}&quot;
-            </p>
-          )}
-
-          {/* Unified WhatsApp-style user list */}
-          {!searchQuery && (
-            <div className="space-y-1">
-              {sortedUnifiedUsers.length > 0 ? (
-                <AnimatePresence>
-                  {sortedUnifiedUsers.map((user) => {
-                    const hasConversation = recentChats.some(rc => rc._id === user._id);
-                    const isActive = activeChat?._id === user._id;
-
-                    return (
-                      <motion.div
-                        key={user._id}
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.95 }}
-                        whileHover={{ scale: 1.01 }}
-                        whileTap={{ scale: 0.99 }}
-                        onClick={() => selectChat(user)}
-                        className={`p-3 flex items-center gap-3 rounded-xl cursor-pointer transition-colors ${
-                          isActive
-                            ? "bg-indigo-500/10"
-                            : "hover:bg-[var(--color-muted)]/50"
-                        }`}
-                      >
-                        <div className={`w-11 h-11 rounded-full bg-gradient-to-br ${
-                          hasConversation 
-                            ? "from-indigo-400 to-purple-500" 
-                            : "from-emerald-400 to-teal-500"
-                        } flex items-center justify-center text-white font-bold text-lg`}>
-                          {user.hikeId.charAt(0).toUpperCase()}
-                        </div>
-                        <div className="flex-1 overflow-hidden">
-                          <p className="font-semibold text-sm text-[var(--color-foreground)] truncate">@{user.hikeId}</p>
-                          <p className="text-xs text-[var(--color-muted-foreground)]">
-                            {hasConversation ? "🔒 E2EE encrypted" : "🔑 Click to start chat"}
-                          </p>
-                        </div>
-                      </motion.div>
-                    );
-                  })}
-                </AnimatePresence>
-              ) : (
-                <div className="flex flex-col items-center justify-center h-48 text-[var(--color-muted-foreground)] px-4 text-center">
-                  <Search className="w-10 h-10 opacity-20 mb-3" />
-                  <p className="text-sm font-medium">Explore & chat with users</p>
-                  <p className="text-xs mt-1 opacity-70">No other users signed up yet</p>
-                </div>
-              )}
-            </div>
-          )}
+          </div>
         </div>
 
         {/* User Profile & Logout Bottom Bar */}
@@ -731,6 +895,29 @@ export default function ChatPage() {
               </div>
             </div>
 
+            {/* E2EE Key Restoration Warning Banner */}
+            {!hasPrivateKey && (
+              <div className="bg-amber-500/10 border-b border-amber-500/20 px-6 py-2.5 flex items-center justify-between gap-4 backdrop-blur-sm z-10">
+                <div className="flex items-center gap-2 text-amber-500 text-xs font-medium">
+                  <span>⚠️ Secure E2EE private key is missing on this browser. Messages are locked.</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={handleRestorePrivateKey}
+                    className="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md text-[11px] font-semibold transition-colors shadow-sm"
+                  >
+                    Restore with Password
+                  </button>
+                  <button
+                    onClick={() => setIsSettingsOpen(true)}
+                    className="px-3 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded-md text-[11px] font-semibold transition-colors shadow-sm"
+                  >
+                    Regenerate Keys
+                  </button>
+                </div>
+              </div>
+            )}
+
             {/* Messages */}
             <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-3">
               {messages.length === 0 && (
@@ -743,7 +930,7 @@ export default function ChatPage() {
               <AnimatePresence>
                 {messages.map((msg, idx) => {
                   if (msg.isNudge) return null;
-                  const isMine = msg.senderId === currentUser?.id || msg.senderId === currentUser?._id;
+                  const isMine = isSameId(msg.senderId, currentUser);
                   return (
                     <motion.div
                       key={idx}
@@ -958,12 +1145,20 @@ export default function ChatPage() {
                         <p className="text-[11px] text-[var(--color-muted-foreground)] leading-normal">
                           You won&apos;t be able to decrypt past or future messages on this browser unless you regenerate your encryption keys or restore from a password-protected backup.
                         </p>
-                        <button
-                          onClick={handleRegenerateKeys}
-                          className="w-full px-3 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-semibold transition-colors animate-pulse"
-                        >
-                          Regenerate E2EE Keys
-                        </button>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={handleRestorePrivateKey}
+                            className="flex-1 px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold transition-colors"
+                          >
+                            Restore from Backup
+                          </button>
+                          <button
+                            onClick={handleRegenerateKeys}
+                            className="flex-1 px-3 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-semibold transition-colors"
+                          >
+                            Regenerate Keys
+                          </button>
+                        </div>
                       </div>
                     ) : (
                       <div className="p-3 bg-indigo-500/5 border border-indigo-500/20 rounded-xl space-y-2">

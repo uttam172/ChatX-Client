@@ -65,10 +65,19 @@ export const getPrivateKey = async (hikeId) => {
 
   let key = await tryGet(cleanId);
   if (!key) {
+    key = await tryGet(cleanId.toLowerCase());
+  }
+  if (!key) {
     key = await tryGet(withAt);
   }
   if (!key) {
+    key = await tryGet(withAt.toLowerCase());
+  }
+  if (!key) {
     key = await tryGet(hikeId);
+  }
+  if (!key) {
+    key = await tryGet(hikeId.toLowerCase());
   }
   return key;
 };
