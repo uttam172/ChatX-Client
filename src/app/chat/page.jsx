@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { initiateSocketConnection, getSocket, disconnectSocket } from "@/utils/socket";
-import { encryptMessage, decryptMessage, getPrivateKey, generateE2EEKeys, storePrivateKey, encryptPrivateKeyWithPassword } from "@/utils/crypto";
+import { encryptMessage, decryptMessage, getPrivateKey, generateE2EEKeys, storePrivateKey, encryptPrivateKeyWithPassword, verifyKeyPair } from "@/utils/crypto";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
@@ -125,7 +125,13 @@ export default function ChatPage() {
 
       const privateKey = await getPrivateKey(parsedUser.hikeId);
       if (!privateKey) {
-        setMessages(historyMessages.map(msg => ({ ...msg, text: "🔒 [Private key missing]" })));
+        setMessages(historyMessages.map(msg => ({ ...msg, text: "🔒 [Private key missing on this browser]" })));
+        return;
+      }
+
+      const isKeyValid = parsedUser.publicKey ? await verifyKeyPair(parsedUser.publicKey, privateKey) : true;
+      if (!isKeyValid) {
+        setMessages(historyMessages.map(msg => ({ ...msg, text: "🔒 [E2EE key mismatch - please restore or regenerate keys]" })));
         return;
       }
 
@@ -168,11 +174,20 @@ export default function ChatPage() {
     }
   }, []);
 
-  // Check if private key exists in IndexedDB
-  const checkPrivateKey = useCallback(async (hikeId) => {
+  // Check if private key exists in IndexedDB and matches our public key
+  const checkPrivateKey = useCallback(async (hikeId, serverPublicKey) => {
     try {
       const key = await getPrivateKey(hikeId);
-      setHasPrivateKey(!!key);
+      if (!key) {
+        setHasPrivateKey(false);
+        return;
+      }
+      if (serverPublicKey) {
+        const matches = await verifyKeyPair(serverPublicKey, key);
+        setHasPrivateKey(matches);
+      } else {
+        setHasPrivateKey(true);
+      }
     } catch {
       setHasPrivateKey(false);
     }
@@ -266,9 +281,47 @@ export default function ChatPage() {
     }
 
     const parsedUser = JSON.parse(user);
-    getPrivateKey(parsedUser.hikeId)
-      .then((key) => setHasPrivateKey(!!key))
-      .catch(() => setHasPrivateKey(false));
+    
+    // Fetch latest user profile from backend to ensure we have the correct, fresh publicKey
+    fetch(`${API_URL}/api/users/me`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(res => res.ok ? res.json() : null)
+      .then(async (dbUser) => {
+        const activeUser = dbUser || parsedUser;
+        if (dbUser) {
+          setCurrentUser(dbUser);
+          localStorage.setItem("user", JSON.stringify(dbUser));
+        }
+
+        const key = await getPrivateKey(activeUser.hikeId);
+        if (!key) {
+          setHasPrivateKey(false);
+          return;
+        }
+        if (activeUser.publicKey) {
+          const matches = await verifyKeyPair(activeUser.publicKey, key);
+          setHasPrivateKey(matches);
+        } else {
+          setHasPrivateKey(true);
+        }
+      })
+      .catch(() => {
+        getPrivateKey(parsedUser.hikeId)
+          .then(async (key) => {
+            if (!key) {
+              setHasPrivateKey(false);
+              return;
+            }
+            if (parsedUser.publicKey) {
+              const matches = await verifyKeyPair(parsedUser.publicKey, key);
+              setHasPrivateKey(matches);
+            } else {
+              setHasPrivateKey(true);
+            }
+          })
+          .catch(() => setHasPrivateKey(false));
+      });
     setTimeout(() => {
       fetchUsers();
     }, 0);
@@ -401,19 +454,22 @@ export default function ChatPage() {
 
   // ── Select a chat contact ───────────────────────────────
   const selectChat = useCallback((user) => {
-    setActiveChat(user);
     setSearchQuery("");
     
     // Add to recent chats list if not already there (appended to end to preserve sorting until message is sent)
     setRecentChats(prev => {
-      const exists = prev.find(c => c._id === user._id);
+      const exists = prev.find(c => isSameId(c._id, user._id));
       return exists ? prev : [...prev, user];
     });
 
-    if (currentUser) {
-      fetchHistory(user, currentUser);
-    }
-  }, [currentUser, fetchHistory]);
+    fetchUsers().then(() => {
+      const latestPeer = allUsersRef.current.find(u => isSameId(u._id, user._id)) || user;
+      setActiveChat(latestPeer);
+      if (currentUser) {
+        fetchHistory(latestPeer, currentUser);
+      }
+    });
+  }, [currentUser, fetchHistory, fetchUsers]);
 
   // ── Hidden Vault toggle ─────────────────────────────────
   const handleVaultToggle = async () => {
@@ -697,7 +753,7 @@ export default function ChatPage() {
               )}
               <button
                 onClick={() => {
-                  if (currentUser) checkPrivateKey(currentUser.hikeId);
+                  if (currentUser) checkPrivateKey(currentUser.hikeId, currentUser.publicKey);
                   setIsSettingsOpen(true);
                 }}
                 className="p-2 rounded-full text-[var(--color-muted-foreground)] hover:text-[var(--color-foreground)] hover:bg-[var(--color-muted)] transition-colors"

@@ -109,6 +109,33 @@ export const importPublicKey = async (base64Key) => {
   return await window.crypto.subtle.importKey('spki', binaryDer, RSA_IMPORT_ALGO, true, ['encrypt']);
 };
 
+export const verifyKeyPair = async (publicKeyBase64, privateKey) => {
+  try {
+    if (!publicKeyBase64 || !privateKey) return false;
+    const pubKey = await importPublicKey(publicKeyBase64);
+    const encoder = new TextEncoder();
+    const data = encoder.encode("key-verification-probe");
+
+    const encrypted = await window.crypto.subtle.encrypt(
+      { name: "RSA-OAEP" },
+      pubKey,
+      data
+    );
+
+    const decrypted = await window.crypto.subtle.decrypt(
+      { name: "RSA-OAEP" },
+      privateKey,
+      encrypted
+    );
+
+    const decoded = new TextDecoder().decode(decrypted);
+    return decoded === "key-verification-probe";
+  } catch (err) {
+    console.warn("Key pair mismatch verification failed:", err);
+    return false;
+  }
+};
+
 // ---------------------------------------------------------
 // Encryption / Decryption routines
 // ---------------------------------------------------------
