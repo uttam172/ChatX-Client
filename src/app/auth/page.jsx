@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { authIllustration } from "@/assets/illustrations";
 import { generateE2EEKeys, storePrivateKey, encryptPrivateKeyWithPassword, decryptPrivateKeyWithPassword } from "@/utils/crypto";
+import { logo } from "@/assets/logo";
 
 // Slowly Floating Color-Shifting Blob Component
 function FloatingBlob({ size, colors, xPath, yPath, scalePath, duration }) {
