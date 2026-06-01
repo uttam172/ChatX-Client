@@ -75,7 +75,7 @@ export default function AuthPage() {
       }
 
       // Redirect to Chat Workspace
-      router.push(endpoint == '/api/auth/signup' ? "/login" : '/chat');
+      router.push('/chat');
     } catch (err) {
       setError(err.message);
     } finally {

@@ -75,6 +75,11 @@ export default function ChatPage() {
   }, []);
 
   const messagesEndRef = useRef(null);
+  const activeChatRef = useRef(null);
+
+  useEffect(() => {
+    activeChatRef.current = activeChat;
+  }, [activeChat]);
 
   // Fetch all users and recent chats from backend
   const fetchUsers = useCallback(async () => {
@@ -351,38 +356,43 @@ export default function ChatPage() {
       if (msg.isNudge) {
         setNudgeShake(true);
         try {
-          // const audio = new Audio("https://actions.google.com/sounds/v1/alarms/beep_short.ogg");
-          const audio = new Audio("../../media/bell-notification.wav");
-          audio.play();
+          const audio = new Audio("/media/bell-notification.mp3");
+          audio.play().catch(e => console.log("Audio playback was blocked or failed:", e));
         } catch {}
         setTimeout(() => setNudgeShake(false), 800);
+
+        if (isSameId(contactId, activeChatRef.current)) {
+          setMessages(prev => [...prev, { ...msg, text: "⚡ Sent a Nudge!" }]);
+        }
         return;
       }
 
-      try {
-        const privateKey = await getPrivateKey(parsedUser.hikeId);
-        if (privateKey) {
-          let decryptedText;
-          try {
-            decryptedText = await decryptMessage(
-              msg.encryptedAesKeyReceiver,
-              msg.ciphertext,
-              msg.iv,
-              privateKey
-            );
-          } catch {
-            decryptedText = await decryptMessage(
-              msg.encryptedAesKeySender,
-              msg.ciphertext,
-              msg.iv,
-              privateKey
-            );
+      if (isSameId(contactId, activeChatRef.current)) {
+        try {
+          const privateKey = await getPrivateKey(parsedUser.hikeId);
+          if (privateKey) {
+            let decryptedText;
+            try {
+              decryptedText = await decryptMessage(
+                msg.encryptedAesKeyReceiver,
+                msg.ciphertext,
+                msg.iv,
+                privateKey
+              );
+            } catch {
+              decryptedText = await decryptMessage(
+                msg.encryptedAesKeySender,
+                msg.ciphertext,
+                msg.iv,
+                privateKey
+              );
+            }
+            setMessages(prev => [...prev, { ...msg, text: decryptedText }]);
           }
-          setMessages(prev => [...prev, { ...msg, text: decryptedText }]);
+        } catch (err) {
+          console.error("Failed to decrypt received message with both keys", err);
+          setMessages(prev => [...prev, { ...msg, text: "🔒 [Could not decrypt]" }]);
         }
-      } catch (err) {
-        console.error("Failed to decrypt received message with both keys", err);
-        setMessages(prev => [...prev, { ...msg, text: "🔒 [Could not decrypt]" }]);
       }
     });
 
@@ -405,30 +415,38 @@ export default function ChatPage() {
         });
       }
 
-      if (msg.isNudge) return;
-      try {
-        const privateKey = await getPrivateKey(parsedUser.hikeId);
-        if (privateKey) {
-          let decryptedText;
-          try {
-            decryptedText = await decryptMessage(
-              msg.encryptedAesKeySender,
-              msg.ciphertext,
-              msg.iv,
-              privateKey
-            );
-          } catch {
-            decryptedText = await decryptMessage(
-              msg.encryptedAesKeyReceiver,
-              msg.ciphertext,
-              msg.iv,
-              privateKey
-            );
-          }
-          setMessages(prev => [...prev, { ...msg, text: decryptedText }]);
+      if (msg.isNudge) {
+        if (isSameId(contactId, activeChatRef.current)) {
+          setMessages(prev => [...prev, { ...msg, text: "⚡ Sent a Nudge!" }]);
         }
-      } catch (err) {
-        console.error("Failed to decrypt sent message with both keys", err);
+        return;
+      }
+
+      if (isSameId(contactId, activeChatRef.current)) {
+        try {
+          const privateKey = await getPrivateKey(parsedUser.hikeId);
+          if (privateKey) {
+            let decryptedText;
+            try {
+              decryptedText = await decryptMessage(
+                msg.encryptedAesKeySender,
+                msg.ciphertext,
+                msg.iv,
+                privateKey
+              );
+            } catch {
+              decryptedText = await decryptMessage(
+                msg.encryptedAesKeyReceiver,
+                msg.ciphertext,
+                msg.iv,
+                privateKey
+              );
+            }
+            setMessages(prev => [...prev, { ...msg, text: decryptedText }]);
+          }
+        } catch (err) {
+          console.error("Failed to decrypt sent message with both keys", err);
+        }
       }
     });
 
@@ -544,13 +562,22 @@ export default function ChatPage() {
 
   // ── Send Nudge ──────────────────────────────────────────
   const sendNudge = async () => {
-    if (!activeChat || !currentUser?.publicKey) return;
+    if (!activeChat) return;
+    if (!activeChat.publicKey) {
+      alert("Cannot send nudge: peer has no E2EE public key.");
+      return;
+    }
+    if (!currentUser?.publicKey) {
+      alert("Cannot send nudge: your public key is missing. Please log out and log back in.");
+      return;
+    }
     const socket = getSocket();
     try {
       const payload = await encryptMessage("NUDGE", activeChat.publicKey, currentUser.publicKey);
       socket?.emit("send_message", { receiverId: activeChat._id, ...payload, isNudge: true });
     } catch (err) {
       console.error("Nudge failed:", err);
+      alert(`Nudge failed: ${err.message}`);
     }
   };
 
@@ -985,7 +1012,23 @@ export default function ChatPage() {
               )}
               <AnimatePresence>
                 {messages.map((msg, idx) => {
-                  if (msg.isNudge) return null;
+                  if (msg.isNudge) {
+                    const isMine = isSameId(msg.senderId, currentUser);
+                    return (
+                      <motion.div
+                        key={idx}
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ duration: 0.2 }}
+                        className="self-center my-2.5 px-4 py-2 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 text-xs flex items-center gap-2 shadow-sm font-medium"
+                      >
+                        <Zap className="w-4 h-4 text-amber-500 animate-bounce" />
+                        <span>
+                          {isMine ? "You sent a nudge!" : `@${activeChat?.hikeId || "Someone"} sent you a nudge!`}
+                        </span>
+                      </motion.div>
+                    );
+                  }
                   const isMine = isSameId(msg.senderId, currentUser);
                   return (
                     <motion.div

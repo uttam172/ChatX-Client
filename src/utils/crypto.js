@@ -38,6 +38,7 @@ const getDB = () => {
 };
 
 export const storePrivateKey = async (hikeId, privateKey) => {
+  if (!hikeId || typeof hikeId !== 'string') return;
   const db = await getDB();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_NAME, 'readwrite');
@@ -49,6 +50,7 @@ export const storePrivateKey = async (hikeId, privateKey) => {
 };
 
 export const getPrivateKey = async (hikeId) => {
+  if (!hikeId || typeof hikeId !== 'string') return null;
   const db = await getDB();
   const cleanId = hikeId.startsWith('@') ? hikeId.slice(1) : hikeId;
   const withAt = `@${cleanId}`;
