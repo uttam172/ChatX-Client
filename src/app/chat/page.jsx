@@ -4,7 +4,8 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Search, Settings, MessageSquare, Phone, Video,
-  MoreVertical, Send, Lock, Unlock, Zap, X, Loader2, LogOut, Copy, Check
+  MoreVertical, Send, Lock, Unlock, Zap, X, Loader2, LogOut, Copy, Check,
+  Trash, ShieldCheck
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { initiateSocketConnection, getSocket, disconnectSocket } from "@/utils/socket";
@@ -61,6 +62,20 @@ export default function ChatPage() {
   const [nudgeShake, setNudgeShake] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [firstUnreadMessageId, setFirstUnreadMessageId] = useState(null);
+
+  // More options dropdown & modal states
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isE2EEInfoOpen, setIsE2EEInfoOpen] = useState(false);
+  const [chatSettings, setChatSettings] = useState([]);
+
+  // Calling overlay states
+  const [callStatus, setCallStatus] = useState("disconnected"); // "disconnected" | "calling" | "connected"
+  const [callType, setCallType] = useState("voice"); // "voice" | "video"
+  const [callTimer, setCallTimer] = useState(0);
+  const [isMuted, setIsMuted] = useState(false);
+  const [isCameraOn, setIsCameraOn] = useState(true);
+
+  const callingAudioRef = useRef(null);
 
   // Settings modal states
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -123,6 +138,30 @@ export default function ChatPage() {
   useEffect(() => {
     allUsersRef.current = allUsers;
   }, [allUsers]);
+
+  // Fetch chat hidden settings
+  const fetchChatSettings = useCallback(async () => {
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) return;
+      const res = await fetch(API_URL + "/api/users/chat-settings", {
+        headers: { Authorization: "Bearer " + token }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setChatSettings(data);
+      }
+    } catch (err) {
+      console.error("Failed to fetch chat settings:", err);
+    }
+  }, []);
+
+  // Fetch chat settings on mount & when activeChat changes
+  useEffect(() => {
+    setTimeout(() => {
+      fetchChatSettings();
+    }, 0);
+  }, [fetchChatSettings, activeChat]);
 
   // Fetch message history with selected contact and decrypt it
   const fetchHistory = useCallback(async (peer, parsedUser) => {
@@ -575,9 +614,10 @@ export default function ChatPage() {
       }
     });
 
-    // Re-fetch users list in the background
+    // Re-fetch users list and settings in the background
     fetchUsers();
-  }, [currentUser, fetchHistory, fetchUsers]);
+    fetchChatSettings();
+  }, [currentUser, fetchHistory, fetchUsers, fetchChatSettings]);
 
   // ── Hidden Vault toggle ─────────────────────────────────
   const handleVaultToggle = async () => {
@@ -813,18 +853,156 @@ export default function ChatPage() {
     }
   };
 
+  // Handle Call Timer ticking
+  useEffect(() => {
+    let timerInterval = null;
+    if (callStatus === "connected") {
+      timerInterval = setInterval(() => {
+        setCallTimer(prev => prev + 1);
+      }, 1000);
+    }
+    return () => {
+      if (timerInterval) clearInterval(timerInterval);
+    };
+  }, [callStatus]);
+
+  // Ringing call handlers
+  const startCall = (type) => {
+    if (!activeChat) return;
+    setCallType(type);
+    setCallStatus("calling");
+    setCallTimer(0);
+    setIsMuted(false);
+    setIsCameraOn(true);
+    
+    // Play loop ringing sound
+    try {
+      const audio = new Audio("/media/guitar-notification.mp3");
+      audio.loop = true;
+      audio.play().catch(e => console.log("Calling sound failed to play:", e));
+      callingAudioRef.current = audio;
+    } catch {}
+
+    // Automatically transition to "connected" after 3.5 seconds
+    setTimeout(() => {
+      setCallStatus(currentStatus => {
+        if (currentStatus === "calling") {
+          // Stop ringing
+          if (callingAudioRef.current) {
+            callingAudioRef.current.pause();
+            callingAudioRef.current = null;
+          }
+          // Play connected sound
+          try {
+            const connectedAudio = new Audio("/media/sci-fi-confirmation.mp3");
+            connectedAudio.play().catch(e => console.log("Connected sound failed to play:", e));
+          } catch {}
+          return "connected";
+        }
+        return currentStatus;
+      });
+    }, 3500);
+  };
+
+  const endCall = () => {
+    setCallStatus("disconnected");
+    setCallTimer(0);
+    if (callingAudioRef.current) {
+      callingAudioRef.current.pause();
+      callingAudioRef.current = null;
+    }
+  };
+
+  // 3-dots Menu action: Clear Chat History persistently
+  const handleClearChat = async () => {
+    if (!activeChat) return;
+    const confirmClear = confirm("Are you sure you want to permanently clear all message history in this chat? This cannot be undone.");
+    if (!confirmClear) return;
+
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch(API_URL + "/api/users/history/" + activeChat._id, {
+        method: "DELETE",
+        headers: { Authorization: "Bearer " + token }
+      });
+
+      if (res.ok) {
+        setMessages([]);
+        setIsMenuOpen(false);
+      } else {
+        alert("Failed to clear chat history.");
+      }
+    } catch (err) {
+      console.error("Error clearing chat:", err);
+      alert("Error clearing chat history.");
+    }
+  };
+
+  // 3-dots Menu action: Toggle Hide/Unhide chat setting
+  const handleToggleHideChat = async () => {
+    if (!activeChat) return;
+    const existing = chatSettings.find(s => s.peerId === activeChat._id);
+    const currentlyHidden = existing ? existing.isHidden : false;
+    const newHiddenState = !currentlyHidden;
+
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch(API_URL + "/api/users/chat-settings/hidden", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: "Bearer " + token
+        },
+        body: JSON.stringify({ peerId: activeChat._id, isHidden: newHiddenState })
+      });
+
+      if (res.ok) {
+        setIsMenuOpen(false);
+        await fetchChatSettings();
+        
+        alert(
+          newHiddenState
+            ? "Conversation hidden! Enter your hidden vault PIN in the sidebar to reveal it."
+            : "Conversation unhidden successfully!"
+        );
+
+        if (newHiddenState && !isVaultOpen) {
+          setActiveChat(null);
+        }
+      } else {
+        alert("Failed to update hidden settings.");
+      }
+    } catch (err) {
+      console.error("Error toggling hidden state:", err);
+      alert("Error hiding conversation.");
+    }
+  };
+
   // Unified user list sorted like WhatsApp: recent conversation partners at the top, others below
   const sortedUnifiedUsers = React.useMemo(() => {
     const recentIds = recentChats.map(c => c._id);
     
-    // Users with active conversations (ordered by recency)
-    const activeChats = recentChats;
+    // Determine which peers are hidden
+    const hiddenPeerIds = chatSettings
+      .filter(s => s.isHidden)
+      .map(s => s.peerId.toString());
+
+    // Filter recent chats (hide if hidden in settings AND vault is closed)
+    const activeChats = recentChats.filter(c => {
+      const isHidden = hiddenPeerIds.includes(c._id.toString());
+      return isVaultOpen || !isHidden;
+    });
 
     // Other users who don't have conversations yet
-    const otherUsers = allUsers.filter(user => !recentIds.includes(user._id));
+    const otherUsers = allUsers
+      .filter(user => !recentIds.includes(user._id))
+      .filter(user => {
+        const isHidden = hiddenPeerIds.includes(user._id.toString());
+        return isVaultOpen || !isHidden;
+      });
 
     return [...activeChats, ...otherUsers];
-  }, [allUsers, recentChats]);
+  }, [allUsers, recentChats, chatSettings, isVaultOpen]);
 
   // Filter unified users based on the debounced search query
   const filteredUsers = React.useMemo(() => {
@@ -977,7 +1155,7 @@ export default function ChatPage() {
                       <div className="flex-1 min-w-0 overflow-hidden">
                         <div className="flex justify-between items-baseline mb-0.5">
                           <p className={`font-semibold text-sm truncate ${user.unreadCount > 0 ? "text-indigo-600 font-bold dark:text-indigo-400" : "text-foreground"}`}>
-                            @{user.hikeId}
+                            {user.hikeId}
                           </p>
                           {latestMsg && (
                             <span className={`text-[10px] shrink-0 font-medium ml-1 ${user.unreadCount > 0 ? "text-indigo-600 font-bold dark:text-indigo-400" : "text-muted-foreground"}`}>
@@ -1035,7 +1213,7 @@ export default function ChatPage() {
             </div>
             <div className="flex flex-col overflow-hidden">
               <span className="text-sm font-semibold text-foreground truncate">
-                {currentUser?.hikeId ? `@${currentUser.hikeId}` : "User"}
+                {currentUser?.hikeId ? `${currentUser.hikeId}` : "User"}
               </span>
               <span className="text-xs text-muted-foreground truncate">
                 {currentUser?.email || ""}
@@ -1068,17 +1246,94 @@ export default function ChatPage() {
                   {activeChat.hikeId.charAt(0).toUpperCase()}
                 </div>
                 <div>
-                  <h2 className="font-semibold text-foreground">@{activeChat.hikeId}</h2>
+                  <h2 className="font-semibold text-foreground">{activeChat.hikeId}</h2>
                   <p className="text-xs text-emerald-500 flex items-center gap-1">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block animate-pulse" />
                     End-to-End Encrypted
                   </p>
                 </div>
               </div>
-              <div className="flex items-center gap-3 text-muted-foreground">
-                <button className="hover:text-indigo-500 transition-colors"><Phone className="w-5 h-5" /></button>
-                <button className="hover:text-indigo-500 transition-colors"><Video className="w-5 h-5" /></button>
-                <button className="hover:text-indigo-500 transition-colors"><MoreVertical className="w-5 h-5" /></button>
+              <div className="flex items-center gap-3 text-muted-foreground relative">
+                <button
+                  onClick={() => startCall("voice")}
+                  className="hover:text-indigo-500 transition-colors cursor-pointer"
+                  title="Voice Call"
+                >
+                  <Phone className="w-5 h-5" />
+                </button>
+                
+                <button
+                  onClick={() => startCall("video")}
+                  className="hover:text-indigo-500 transition-colors cursor-pointer"
+                  title="Video Call"
+                >
+                  <Video className="w-5 h-5" />
+                </button>
+                
+                <div className="relative">
+                  <button
+                    onClick={() => setIsMenuOpen(prev => !prev)}
+                    className="hover:text-indigo-500 transition-colors p-1 rounded-full hover:bg-muted cursor-pointer"
+                    title="More Options"
+                  >
+                    <MoreVertical className="w-5 h-5" />
+                  </button>
+
+                  {/* Dropdown Menu */}
+                  <AnimatePresence>
+                    {isMenuOpen && (
+                      <>
+                        <div
+                          className="fixed inset-0 z-30"
+                          onClick={() => setIsMenuOpen(false)}
+                        />
+                        <motion.div
+                          initial={{ opacity: 0, scale: 0.95, y: -10 }}
+                          animate={{ opacity: 1, scale: 1, y: 0 }}
+                          exit={{ opacity: 0, scale: 0.95, y: -10 }}
+                          transition={{ duration: 0.15 }}
+                          className="absolute right-0 mt-2 w-52 bg-card border border-border rounded-xl shadow-2xl py-1.5 z-40 text-foreground"
+                        >
+                          <button
+                            onClick={handleClearChat}
+                            className="w-full text-left px-4 py-2 text-sm hover:bg-rose-500/10 text-rose-500 flex items-center gap-2.5 transition-colors font-medium cursor-pointer"
+                          >
+                            <Trash className="w-4 h-4" />
+                            Clear Chat History
+                          </button>
+                          
+                          <button
+                            onClick={handleToggleHideChat}
+                            className="w-full text-left px-4 py-2 text-sm hover:bg-muted text-foreground flex items-center gap-2.5 transition-colors font-medium cursor-pointer"
+                          >
+                            {chatSettings.find(s => s.peerId === activeChat._id && s.isHidden) ? (
+                              <>
+                                <Unlock className="w-4 h-4 text-indigo-500" />
+                                Unhide Conversation
+                              </>
+                            ) : (
+                              <>
+                                <Lock className="w-4 h-4 text-indigo-500" />
+                                Hide Conversation
+                              </>
+                            )}
+                          </button>
+
+                          <button
+                            onClick={() => {
+                              setIsMenuOpen(false);
+                              setIsE2EEInfoOpen(true);
+                            }}
+                            className="w-full text-left px-4 py-2 text-sm hover:bg-muted text-foreground flex items-center gap-2.5 transition-colors font-medium border-t border-border mt-1 cursor-pointer"
+                          >
+                            <ShieldCheck className="w-4 h-4 text-emerald-500" />
+                            View Encryption Info
+                          </button>
+                        </motion.div>
+                      </>
+                    )}
+                  </AnimatePresence>
+                </div>
               </div>
             </div>
 
@@ -1111,7 +1366,7 @@ export default function ChatPage() {
                 <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground opacity-50">
                   <Lock className="w-10 h-10 mb-2" />
                   <p className="text-sm">Messages are end-to-end encrypted</p>
-                  <p className="text-xs mt-1">Say hi to @{activeChat.hikeId}!</p>
+                  <p className="text-xs mt-1">Say hi to {activeChat.hikeId}!</p>
                 </div>
               )}
               <AnimatePresence>
@@ -1140,7 +1395,7 @@ export default function ChatPage() {
                         >
                           <Zap className="w-4 h-4 text-amber-500 animate-bounce" />
                           <span>
-                            {isMine ? "You sent a nudge!" : `@${activeChat?.hikeId || "Someone"} sent you a nudge!`}
+                            {isMine ? "You sent a nudge!" : `${activeChat?.hikeId || "Someone"} sent you a nudge!`}
                           </span>
                         </motion.div>
                       ) : (
@@ -1260,7 +1515,7 @@ export default function ChatPage() {
                       </div>
                       <div>
                         <p className="font-bold text-base text-foreground">
-                          @{currentUser?.hikeId || "unknown"}
+                          {currentUser?.hikeId || "unknown"}
                         </p>
                         <p className="text-sm text-muted-foreground">
                           {currentUser?.email || "unknown"}
@@ -1405,6 +1660,173 @@ export default function ChatPage() {
                   className="px-4 py-2 bg-muted hover:bg-muted/80 text-foreground rounded-xl text-sm font-semibold transition-colors"
                 >
                   Close
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Call Overlay */}
+      {callStatus !== "disconnected" && (
+        <div className="fixed inset-0 bg-slate-950/95 backdrop-blur-xl flex flex-col justify-between p-8 z-50 text-white animate-fade-in">
+          <div className="flex justify-between items-center">
+            <span className="text-xs font-bold tracking-widest text-slate-400 uppercase">
+              {callType === "video" ? "Secure E2EE Video Call" : "Secure E2EE Voice Call"}
+            </span>
+            <div className="flex items-center gap-1.5 bg-emerald-500/10 text-emerald-400 px-3.5 py-1.5 rounded-full text-xs font-semibold border border-emerald-500/20">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              <span>Encrypted</span>
+            </div>
+          </div>
+
+          <div className="flex-1 flex flex-col items-center justify-center relative my-8">
+            {callType === "video" && callStatus === "connected" ? (
+              <div className="w-full h-full max-w-2xl aspect-video bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden relative shadow-2xl">
+                <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-indigo-950/50 to-slate-900">
+                  <motion.img
+                    animate={{ scale: [1, 1.05, 1] }}
+                    transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+                    src={"https://api.dicebear.com/7.x/initials/svg?seed=" + activeChat.hikeId + "&radius=50&backgroundType=gradientLinear"}
+                    alt={activeChat.hikeId}
+                    className="w-28 h-28 rounded-full border-4 border-indigo-500/30 shadow-2xl"
+                  />
+                  <div className="absolute bottom-4 left-4 text-xs font-semibold tracking-wider bg-black/50 px-3.5 py-1.5 rounded-xl backdrop-blur-md border border-white/5">
+                    {activeChat.hikeId}
+                  </div>
+                </div>
+
+                {isCameraOn && (
+                  <div className="absolute top-4 right-4 w-32 aspect-video bg-slate-950 border border-slate-700 rounded-2xl overflow-hidden shadow-md flex items-center justify-center bg-cover bg-center">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider bg-black/40 px-2 py-0.5 rounded">You</span>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="relative">
+                <motion.div
+                  animate={{ scale: [1, 1.3, 1], opacity: [0.3, 0.1, 0.3] }}
+                  transition={{ duration: 2.5, repeat: Infinity }}
+                  className="absolute inset-0 bg-indigo-500 rounded-full"
+                />
+                <motion.div
+                  animate={{ scale: [1, 1.15, 1], opacity: [0.5, 0.2, 0.5] }}
+                  transition={{ duration: 2, repeat: Infinity, delay: 0.5 }}
+                  className="absolute inset-0 bg-purple-500 rounded-full"
+                />
+                <img
+                  src={"https://api.dicebear.com/7.x/initials/svg?seed=" + activeChat.hikeId + "&radius=50&backgroundType=gradientLinear"}
+                  alt={activeChat.hikeId}
+                  className="w-32 h-32 rounded-full border-4 border-indigo-600 relative z-10 shadow-2xl"
+                />
+              </div>
+            )}
+
+            <div className="mt-8 text-center relative z-10">
+              <h3 className="text-3xl font-black tracking-tight">{activeChat.hikeId}</h3>
+              <p className="text-xs text-indigo-400 mt-2 tracking-widest uppercase font-black">
+                {callStatus === "calling" ? "Calling..." : "Connected — " + Math.floor(callTimer / 60).toString().padStart(2, "0") + ":" + (callTimer % 60).toString().padStart(2, "0")}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-center gap-6 py-4 border-t border-slate-900">
+            <button
+              onClick={() => setIsMuted(prev => !prev)}
+              className={"p-4 rounded-full transition-all border cursor-pointer " +
+                (isMuted
+                  ? "bg-rose-600 border-rose-600 hover:bg-rose-700"
+                  : "bg-slate-900 border-slate-800 hover:bg-slate-800")
+              }
+              title={isMuted ? "Unmute" : "Mute"}
+            >
+              <Phone className="w-6 h-6 rotate-[135deg]" />
+            </button>
+
+            <button
+              onClick={endCall}
+              className="p-5 bg-rose-600 hover:bg-rose-700 rounded-full shadow-lg hover:shadow-rose-600/20 transition-all border border-rose-500 cursor-pointer"
+              title="Hang Up"
+            >
+              <Phone className="w-8 h-8 rotate-[135deg]" />
+            </button>
+
+            {callType === "video" && (
+              <button
+                onClick={() => setIsCameraOn(prev => !prev)}
+                className={"p-4 rounded-full transition-all border cursor-pointer " +
+                  (!isCameraOn
+                    ? "bg-rose-600 border-rose-600 hover:bg-rose-700"
+                    : "bg-slate-900 border-slate-800 hover:bg-slate-800")
+                }
+                title={isCameraOn ? "Turn Camera Off" : "Turn Camera On"}
+              >
+                <Video className="w-6 h-6" />
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* E2EE Info Modal */}
+      <AnimatePresence>
+        {isE2EEInfoOpen && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              transition={{ type: "spring", duration: 0.4 }}
+              className="bg-card border border-border rounded-2xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col"
+            >
+              <div className="p-4 border-b border-border flex items-center justify-between bg-muted/20">
+                <div className="flex items-center gap-2 text-emerald-500">
+                  <ShieldCheck className="w-5 h-5" />
+                  <h3 className="font-bold text-lg text-foreground">Encryption Status</h3>
+                </div>
+                <button
+                  onClick={() => setIsE2EEInfoOpen(false)}
+                  className="p-1.5 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="p-5 space-y-4">
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  Conversations with <span className="font-semibold text-foreground">{activeChat.hikeId}</span> are end-to-end encrypted (E2EE). Messages are secured in your browser using standard AES-GCM-256 before being sent to the server. Neither ChatX nor any third party can read them.
+                </p>
+
+                <div className="space-y-1.5 pt-2 border-t border-border">
+                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                    {activeChat.hikeId}&apos;s Public Key
+                  </span>
+                  <div className="bg-muted border border-border rounded-xl p-3 font-mono text-[10px] break-all max-h-24 overflow-y-auto text-muted-foreground leading-normal select-all">
+                    {activeChat.publicKey || "No E2EE public key available."}
+                  </div>
+                </div>
+
+                <div className="space-y-1 pt-2 border-t border-border">
+                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                    Verification Fingerprint
+                  </span>
+                  <p className="text-[11px] font-mono text-indigo-500 font-bold tracking-wider select-all">
+                    {activeChat.publicKey
+                      ? activeChat.publicKey.substring(0, 16).match(/.{1,4}/g).join(" ") + " ... " + activeChat.publicKey.substring(activeChat.publicKey.length - 16).match(/.{1,4}/g).join(" ")
+                      : "N/A"}
+                  </p>
+                  <p className="text-[10px] text-slate-400 mt-1">
+                    Compare these key segments with your contact to verify the security of this connection.
+                  </p>
+                </div>
+              </div>
+
+              <div className="p-4 border-t border-border bg-muted/10 flex justify-end">
+                <button
+                  onClick={() => setIsE2EEInfoOpen(false)}
+                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-semibold transition-colors shadow-md cursor-pointer"
+                >
+                  Verified
                 </button>
               </div>
             </motion.div>

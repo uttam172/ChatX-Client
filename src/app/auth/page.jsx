@@ -144,7 +144,7 @@ export default function AuthPage() {
                 <User className="absolute left-3 top-3 w-5 h-5 text-muted-foreground" />
                 <input 
                   type="text" 
-                  placeholder="Hike ID (e.g. @alex)" 
+                  placeholder="Hike ID (e.g. alex)" 
                   value={formData.hikeId}
                   onChange={(e) => setFormData({ ...formData, hikeId: e.target.value })}
                   className="w-full pl-10 pr-4 py-2 rounded-xl border border-white/20 bg-white/5 focus:bg-white/10 dark:bg-black/10 dark:focus:bg-black/20 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-foreground"
@@ -158,7 +158,7 @@ export default function AuthPage() {
                 <Mail className="absolute left-3 top-3 w-5 h-5 text-muted-foreground" />
                 <input
                   type="text"
-                  placeholder="Email or Hike ID (e.g. @alex)"
+                  placeholder="Email or Hike ID (e.g. alex)"
                   value={formData.identifier}
                   onChange={(e) => setFormData({ ...formData, identifier: e.target.value })}
                   className="w-full pl-10 pr-4 py-2 rounded-xl border border-white/20 bg-white/5 focus:bg-white/10 dark:bg-black/10 dark:focus:bg-black/20 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-foreground"
