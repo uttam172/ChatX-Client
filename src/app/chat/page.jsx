@@ -76,6 +76,7 @@ export default function ChatPage() {
 
   const messagesEndRef = useRef(null);
   const activeChatRef = useRef(null);
+  const messageInputRef = useRef(null);
 
   useEffect(() => {
     activeChatRef.current = activeChat;
@@ -457,6 +458,37 @@ export default function ChatPage() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  // ── Auto-focus message input on typing ──────────────────
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      // Only focus if the pressed key is a single alphanumeric char without modifier keys
+      if (
+        e.key.length === 1 &&
+        /^[a-zA-Z0-9]$/.test(e.key) &&
+        !e.ctrlKey &&
+        !e.altKey &&
+        !e.metaKey
+      ) {
+        // Do not steal focus if the user is already typing in an input, textarea, or contenteditable
+        const activeEl = document.activeElement;
+        const isInput =
+          activeEl &&
+          (activeEl.tagName === "INPUT" ||
+            activeEl.tagName === "TEXTAREA" ||
+            activeEl.isContentEditable);
+
+        if (!isInput && !isSettingsOpen && messageInputRef.current) {
+          messageInputRef.current.focus();
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isSettingsOpen]);
 
   // ── Debounce Search Query ──────────────────────────────
   useEffect(() => {
@@ -1070,6 +1102,7 @@ export default function ChatPage() {
 
                 <div className="flex-1 relative">
                   <input
+                    ref={messageInputRef}
                     type="text"
                     placeholder="Type a secure message…"
                     value={messageInput}
