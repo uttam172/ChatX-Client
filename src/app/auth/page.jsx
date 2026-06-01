@@ -84,7 +84,7 @@ export default function AuthPage() {
   };
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 dark:from-indigo-950 dark:via-purple-950 dark:to-slate-900 relative overflow-hidden">
+    <div className="min-h-screen w-full flex items-center justify-center bg-linear-to-br from-indigo-500 via-purple-500 to-pink-500 dark:from-indigo-950 dark:via-purple-950 dark:to-slate-900 relative overflow-hidden">
       
       {/* Animated Background Elements */}
       <motion.div 
@@ -95,7 +95,7 @@ export default function AuthPage() {
       <motion.div 
         animate={{ scale: [1, 1.5, 1], rotate: [0, -90, 0] }} 
         transition={{ duration: 25, repeat: Infinity, ease: "linear" }}
-        className="absolute -bottom-32 -right-32 w-[500px] h-[500px] bg-indigo-500/20 rounded-full blur-3xl pointer-events-none"
+        className="absolute -bottom-32 -right-32 w-125 h-125 bg-indigo-500/20 rounded-full blur-3xl pointer-events-none"
       />
 
       <motion.div 
@@ -109,7 +109,7 @@ export default function AuthPage() {
             initial={{ scale: 0 }} 
             animate={{ scale: 1 }} 
             transition={{ type: "spring", bounce: 0.5, delay: 0.2 }}
-            className="w-16 h-16 bg-gradient-to-tr from-blue-600 to-indigo-600 rounded-2xl mx-auto flex items-center justify-center shadow-lg mb-4"
+            className="w-16 h-16 bg-linear-to-tr from-blue-600 to-indigo-600 rounded-2xl mx-auto flex items-center justify-center shadow-lg mb-4"
           >
             <MessageCircle className="text-white w-8 h-8" />
           </motion.div>

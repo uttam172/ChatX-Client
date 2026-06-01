@@ -784,24 +784,24 @@ export default function ChatPage() {
 
   if (!mounted) {
     return (
-      <div className="flex h-screen w-full items-center justify-center bg-[var(--color-background)]">
+      <div className="flex h-screen w-full items-center justify-center bg-background">
         <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
       </div>
     );
   }
 
   return (
-    <div className="flex h-screen w-full bg-[var(--color-background)] overflow-hidden">
+    <div className="flex h-screen w-full bg-background overflow-hidden">
 
       {/* ── Sidebar ───────────────────────────────────────── */}
-      <div className="w-80 h-full border-r border-[var(--color-border)] flex flex-col bg-[var(--color-card)] z-20">
+      <div className="w-80 h-full border-r border-border flex flex-col bg-card z-20">
 
         {/* Header */}
         <div className="p-4 border-b border-(--color-border) flex flex-col gap-3">
           <div className="flex items-center justify-between">
             <div className="flex justify-start items-center gap-2">
               <Image src={ChatXicon} alt="" width={35}/>
-              <h1 className="text-xl font-bold tracking-tight text-[var(--color-foreground)]">ChatX</h1>
+              <h1 className="text-xl font-bold tracking-tight text-foreground">ChatX</h1>
             </div>
             <div className="flex items-center gap-2">
               {isVaultOpen && (
@@ -818,7 +818,7 @@ export default function ChatPage() {
                   if (currentUser) checkPrivateKey(currentUser.hikeId, currentUser.publicKey);
                   setIsSettingsOpen(true);
                 }}
-                className="p-2 rounded-full text-[var(--color-muted-foreground)] hover:text-[var(--color-foreground)] hover:bg-[var(--color-muted)] transition-colors"
+                className="p-2 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
                 title="Settings"
               >
                 <Settings className="w-5 h-5" />
@@ -833,7 +833,7 @@ export default function ChatPage() {
             className="flex gap-2"
           >
             <div className="relative flex-1">
-              <Lock className="absolute left-2.5 top-2.5 w-4 h-4 text-[var(--color-muted-foreground)]" />
+              <Lock className="absolute left-2.5 top-2.5 w-4 h-4 text-muted-foreground" />
               <input
                 type="password"
                 placeholder={isVaultOpen ? "Vault open — tap 🔓 to close" : "Hidden vault PIN…"}
@@ -841,7 +841,7 @@ export default function ChatPage() {
                 value={pinInput}
                 onChange={(e) => setPinInput(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleVaultToggle()}
-                className="w-full pl-8 pr-3 py-2 rounded-lg bg-[var(--color-muted)] text-sm text-[var(--color-foreground)] focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:opacity-50 transition-all"
+                className="w-full pl-8 pr-3 py-2 rounded-lg bg-muted text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:opacity-50 transition-all"
               />
             </div>
             {!isVaultOpen && (
@@ -856,7 +856,7 @@ export default function ChatPage() {
 
           {/* Search bar */}
           <div className="relative">
-            <Search className="absolute left-3 top-2.5 w-4 h-4 text-[var(--color-muted-foreground)]" />
+            <Search className="absolute left-3 top-2.5 w-4 h-4 text-muted-foreground" />
             <input
               type="text"
               value={searchQuery}
@@ -865,11 +865,11 @@ export default function ChatPage() {
                 setIsSearching(true);
               }}
               placeholder="Search by Hike ID or email…"
-              className="w-full pl-9 pr-8 py-2 rounded-xl bg-[var(--color-muted)] text-[var(--color-foreground)] focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-sm"
+              className="w-full pl-9 pr-8 py-2 rounded-xl bg-muted text-foreground focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-sm"
             />
             {searchQuery && (
               <button onClick={() => { setSearchQuery(""); setDebouncedSearchQuery(""); setIsSearching(false); }}
-                className="absolute right-2.5 top-2.5 text-[var(--color-muted-foreground)] hover:text-[var(--color-foreground)]">
+                className="absolute right-2.5 top-2.5 text-muted-foreground hover:text-foreground">
                 <X className="w-4 h-4" />
               </button>
             )}
@@ -904,7 +904,7 @@ export default function ChatPage() {
                       className={`p-3 flex items-center gap-3 rounded-xl cursor-pointer transition-all ${
                         isActive
                           ? "bg-indigo-500/15 border-l-4 border-indigo-600 pl-2"
-                          : "hover:bg-[var(--color-muted)]/50"
+                          : "hover:bg-muted/50"
                       }`}
                     >
                       {/* Dynamic DiceBear Profile Avatar */}
@@ -912,22 +912,22 @@ export default function ChatPage() {
                       <img
                         src={`https://api.dicebear.com/7.x/initials/svg?seed=${user.hikeId}&radius=50&backgroundType=gradientLinear`}
                         alt={user.hikeId}
-                        className="w-11 h-11 rounded-full object-cover border border-[var(--color-border)] shadow-sm flex-shrink-0"
+                        className="w-11 h-11 rounded-full object-cover border border-border shadow-sm shrink-0"
                       />
                       
                       {/* User Info & Last Message */}
                       <div className="flex-1 min-w-0 overflow-hidden">
                         <div className="flex justify-between items-baseline mb-0.5">
-                          <p className="font-semibold text-sm text-[var(--color-foreground)] truncate">
+                          <p className="font-semibold text-sm text-foreground truncate">
                             @{user.hikeId}
                           </p>
                           {latestMsg && (
-                            <span className="text-[10px] text-[var(--color-muted-foreground)] flex-shrink-0 font-medium ml-1">
+                            <span className="text-[10px] text-muted-foreground shrink-0 font-medium ml-1">
                               {formatMessageTime(latestMsg.createdAt)}
                             </span>
                           )}
                         </div>
-                        <p className="text-xs text-[var(--color-muted-foreground)] truncate pr-2">
+                        <p className="text-xs text-muted-foreground truncate pr-2">
                           {latestMsg ? (
                             decryptedLastMessages[user._id]?.text || "🔒 [Decrypting...]"
                           ) : (
@@ -940,7 +940,7 @@ export default function ChatPage() {
                 })}
               </AnimatePresence>
             ) : (
-              <div className="flex flex-col items-center justify-center h-48 text-[var(--color-muted-foreground)] px-4 text-center">
+              <div className="flex flex-col items-center justify-center h-48 text-muted-foreground px-4 text-center">
                 <Search className="w-10 h-10 opacity-20 mb-3" />
                 {searchQuery ? (
                   <>
@@ -959,23 +959,23 @@ export default function ChatPage() {
         </div>
 
         {/* User Profile & Logout Bottom Bar */}
-        <div className="p-3 border-t border-[var(--color-border)] bg-[var(--color-muted)]/20 flex items-center justify-between gap-3">
+        <div className="p-3 border-t border-border bg-muted/20 flex items-center justify-between gap-3">
           <div className="flex items-center gap-2.5 overflow-hidden">
-            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
+            <div className="w-9 h-9 rounded-full bg-linear-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white font-bold text-sm shrink-0">
               {currentUser?.hikeId?.charAt(0).toUpperCase() || "?"}
             </div>
             <div className="flex flex-col overflow-hidden">
-              <span className="text-sm font-semibold text-[var(--color-foreground)] truncate">
+              <span className="text-sm font-semibold text-foreground truncate">
                 {currentUser?.hikeId ? `@${currentUser.hikeId}` : "User"}
               </span>
-              <span className="text-xs text-[var(--color-muted-foreground)] truncate">
+              <span className="text-xs text-muted-foreground truncate">
                 {currentUser?.email || ""}
               </span>
             </div>
           </div>
           <button
             onClick={handleLogout}
-            className="p-2 rounded-lg text-rose-500 hover:text-white hover:bg-rose-500/20 active:bg-rose-500/30 transition-all flex-shrink-0"
+            className="p-2 rounded-lg text-rose-500 hover:text-white hover:bg-rose-500/20 active:bg-rose-500/30 transition-all shrink-0"
             title="Logout"
           >
             <LogOut className="w-5 h-5" />
@@ -993,20 +993,20 @@ export default function ChatPage() {
         {activeChat ? (
           <>
             {/* Chat Header */}
-            <div className="h-16 border-b border-[var(--color-border)] flex items-center justify-between px-6 bg-[var(--color-card)]/80 backdrop-blur-md z-10 shadow-sm">
+            <div className="h-16 border-b border-border flex items-center justify-between px-6 bg-card/80 backdrop-blur-md z-10 shadow-sm">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center text-white font-bold">
+                <div className="w-10 h-10 rounded-full bg-linear-to-br from-indigo-400 to-purple-500 flex items-center justify-center text-white font-bold">
                   {activeChat.hikeId.charAt(0).toUpperCase()}
                 </div>
                 <div>
-                  <h2 className="font-semibold text-[var(--color-foreground)]">@{activeChat.hikeId}</h2>
+                  <h2 className="font-semibold text-foreground">@{activeChat.hikeId}</h2>
                   <p className="text-xs text-emerald-500 flex items-center gap-1">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block animate-pulse" />
                     End-to-End Encrypted
                   </p>
                 </div>
               </div>
-              <div className="flex items-center gap-3 text-[var(--color-muted-foreground)]">
+              <div className="flex items-center gap-3 text-muted-foreground">
                 <button className="hover:text-indigo-500 transition-colors"><Phone className="w-5 h-5" /></button>
                 <button className="hover:text-indigo-500 transition-colors"><Video className="w-5 h-5" /></button>
                 <button className="hover:text-indigo-500 transition-colors"><MoreVertical className="w-5 h-5" /></button>
@@ -1039,7 +1039,7 @@ export default function ChatPage() {
             {/* Messages */}
             <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-3">
               {messages.length === 0 && (
-                <div className="flex-1 flex flex-col items-center justify-center text-[var(--color-muted-foreground)] opacity-50">
+                <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground opacity-50">
                   <Lock className="w-10 h-10 mb-2" />
                   <p className="text-sm">Messages are end-to-end encrypted</p>
                   <p className="text-xs mt-1">Say hi to @{activeChat.hikeId}!</p>
@@ -1074,10 +1074,10 @@ export default function ChatPage() {
                       className={`max-w-[70%] px-4 py-2.5 rounded-2xl shadow-sm ${
                         isMine
                           ? "self-end bg-indigo-600 text-white rounded-tr-sm"
-                          : "self-start bg-[var(--color-card)] text-[var(--color-foreground)] rounded-tl-sm border border-[var(--color-border)]"
+                          : "self-start bg-card text-foreground rounded-tl-sm border border-border"
                       }`}
                     >
-                      <p className="text-sm break-words leading-relaxed">{msg.text}</p>
+                      <p className="text-sm wrap-break-word leading-relaxed">{msg.text}</p>
                     </motion.div>
                   );
                 })}
@@ -1088,7 +1088,7 @@ export default function ChatPage() {
             {/* Input Bar */}
             <form
               onSubmit={sendMessage}
-              className="p-4 bg-[var(--color-card)]/80 backdrop-blur-md border-t border-[var(--color-border)]"
+              className="p-4 bg-card/80 backdrop-blur-md border-t border-border"
             >
               <div className="flex items-center gap-2 max-w-4xl mx-auto">
                 {/* Nudge Button */}
@@ -1097,7 +1097,7 @@ export default function ChatPage() {
                   onClick={sendNudge}
                   whileHover={{ scale: 1.12 }}
                   whileTap={{ scale: 0.88 }}
-                  className="p-3 bg-amber-500/10 text-amber-500 hover:bg-amber-500 hover:text-white rounded-full transition-all flex-shrink-0"
+                  className="p-3 bg-amber-500/10 text-amber-500 hover:bg-amber-500 hover:text-white rounded-full transition-all shrink-0"
                   title="Send a Nudge! ⚡"
                 >
                   <Zap className="w-5 h-5" />
@@ -1111,7 +1111,7 @@ export default function ChatPage() {
                     value={messageInput}
                     onChange={(e) => setMessageInput(e.target.value)}
                     disabled={isSending}
-                    className="w-full pl-4 pr-12 py-3 rounded-full bg-[var(--color-muted)] text-[var(--color-foreground)] focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm disabled:opacity-50 transition-all"
+                    className="w-full pl-4 pr-12 py-3 rounded-full bg-muted text-foreground focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm disabled:opacity-50 transition-all"
                   />
                   <button
                     type="submit"
@@ -1125,7 +1125,7 @@ export default function ChatPage() {
             </form>
           </>
         ) : (
-          <div className="flex-1 flex flex-col items-center justify-center text-[var(--color-muted-foreground)]">
+          <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground">
             <motion.div
               animate={{ y: [0, -8, 0] }}
               transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
@@ -1147,13 +1147,13 @@ export default function ChatPage() {
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 10 }}
               transition={{ type: "spring", duration: 0.4 }}
-              className="bg-[var(--color-card)] border border-[var(--color-border)] rounded-2xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col"
+              className="bg-card border border-border rounded-2xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col"
             >
               {/* Modal Header */}
-              <div className="p-4 border-b border-[var(--color-border)] flex items-center justify-between bg-[var(--color-muted)]/20">
+              <div className="p-4 border-b border-border flex items-center justify-between bg-muted/20">
                 <div className="flex items-center gap-2">
                   <Settings className="w-5 h-5 text-indigo-500" />
-                  <h3 className="font-bold text-lg text-[var(--color-foreground)]">Settings</h3>
+                  <h3 className="font-bold text-lg text-foreground">Settings</h3>
                 </div>
                 <button
                   onClick={() => {
@@ -1161,7 +1161,7 @@ export default function ChatPage() {
                     setPinMessage("");
                     setNewPin("");
                   }}
-                  className="p-1.5 rounded-full hover:bg-[var(--color-muted)] text-[var(--color-muted-foreground)] hover:text-[var(--color-foreground)] transition-colors"
+                  className="p-1.5 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -1171,19 +1171,19 @@ export default function ChatPage() {
               <div className="p-5 space-y-6 overflow-y-auto max-h-[70vh]">
                 {/* Profile Section */}
                 <div className="space-y-3">
-                  <h4 className="text-xs font-semibold text-[var(--color-muted-foreground)] uppercase tracking-wider">
+                  <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                     Profile Information
                   </h4>
-                  <div className="bg-[var(--color-muted)]/40 border border-[var(--color-border)] rounded-xl p-4 space-y-3">
+                  <div className="bg-muted/40 border border-border rounded-xl p-4 space-y-3">
                     <div className="flex items-center gap-3">
-                      <div className="w-12 h-12 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white font-bold text-lg">
+                      <div className="w-12 h-12 rounded-full bg-linear-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white font-bold text-lg">
                         {currentUser?.hikeId?.charAt(0).toUpperCase() || "?"}
                       </div>
                       <div>
-                        <p className="font-bold text-base text-[var(--color-foreground)]">
+                        <p className="font-bold text-base text-foreground">
                           @{currentUser?.hikeId || "unknown"}
                         </p>
-                        <p className="text-sm text-[var(--color-muted-foreground)]">
+                        <p className="text-sm text-muted-foreground">
                           {currentUser?.email || "unknown"}
                         </p>
                       </div>
@@ -1191,9 +1191,9 @@ export default function ChatPage() {
 
                     {/* Public Key Display */}
                     {currentUser?.publicKey && (
-                      <div className="pt-2 border-t border-[var(--color-border)] space-y-1.5">
+                      <div className="pt-2 border-t border-border space-y-1.5">
                         <div className="flex items-center justify-between">
-                          <span className="text-xs font-medium text-[var(--color-muted-foreground)]">
+                          <span className="text-xs font-medium text-muted-foreground">
                             E2EE Public Key
                           </span>
                           <button
@@ -1211,7 +1211,7 @@ export default function ChatPage() {
                             )}
                           </button>
                         </div>
-                        <div className="bg-[var(--color-card)] border border-[var(--color-border)] rounded-lg p-2 font-mono text-[10px] break-all max-h-20 overflow-y-auto text-[var(--color-muted-foreground)] select-all leading-tight">
+                        <div className="bg-card border border-border rounded-lg p-2 font-mono text-[10px] break-all max-h-20 overflow-y-auto text-muted-foreground select-all leading-tight">
                           {currentUser.publicKey}
                         </div>
                       </div>
@@ -1223,13 +1223,13 @@ export default function ChatPage() {
                 <div className="space-y-3">
                   <div className="flex items-center gap-2">
                     <Lock className="w-4 h-4 text-indigo-500" />
-                    <h4 className="text-xs font-semibold text-[var(--color-muted-foreground)] uppercase tracking-wider">
+                    <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                       Hidden Vault Security
                     </h4>
                   </div>
                   
                   <form onSubmit={handleSetPin} className="space-y-3">
-                    <p className="text-xs text-[var(--color-muted-foreground)] leading-relaxed">
+                    <p className="text-xs text-muted-foreground leading-relaxed">
                       Set or update your 4-digit PIN. This PIN is used to encrypt and lock/unlock your hidden conversational vault from the sidebar.
                     </p>
                     <div className="flex gap-2">
@@ -1244,7 +1244,7 @@ export default function ChatPage() {
                           const val = e.target.value.replace(/[^0-9]/g, "");
                           setNewPin(val);
                         }}
-                        className="flex-1 px-3 py-2 rounded-xl bg-[var(--color-muted)] text-[var(--color-foreground)] border border-[var(--color-border)] focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+                        className="flex-1 px-3 py-2 rounded-xl bg-muted text-foreground border border-border focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
                       />
                       <button
                         type="submit"
@@ -1263,10 +1263,10 @@ export default function ChatPage() {
                 </div>
 
                 {/* E2EE Key Management Section */}
-                <div className="space-y-3 pt-4 border-t border-[var(--color-border)]">
+                <div className="space-y-3 pt-4 border-t border-border">
                   <div className="flex items-center gap-2">
                     <Unlock className="w-4 h-4 text-amber-500" />
-                    <h4 className="text-xs font-semibold text-[var(--color-muted-foreground)] uppercase tracking-wider">
+                    <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                       End-to-End Encryption Keys
                     </h4>
                   </div>
@@ -1277,7 +1277,7 @@ export default function ChatPage() {
                         <p className="text-xs text-amber-400 font-semibold leading-relaxed flex items-center gap-1.5">
                           ⚠️ Private key missing from this browser!
                         </p>
-                        <p className="text-[11px] text-[var(--color-muted-foreground)] leading-normal">
+                        <p className="text-[11px] text-muted-foreground leading-normal">
                           You won&apos;t be able to decrypt past or future messages on this browser unless you regenerate your encryption keys or restore from a password-protected backup.
                         </p>
                         <div className="flex gap-2">
@@ -1300,7 +1300,7 @@ export default function ChatPage() {
                         <p className="text-xs text-emerald-500 font-semibold leading-relaxed flex items-center gap-1.5">
                           ✓ Secure E2EE Key Active
                         </p>
-                        <p className="text-[11px] text-[var(--color-muted-foreground)] leading-normal">
+                        <p className="text-[11px] text-muted-foreground leading-normal">
                           Your private key is securely stored in this browser&apos;s IndexedDB. If you are having issues decrypting messages or logged in on a new device, you can reset your key pair below.
                         </p>
                         <button
@@ -1316,14 +1316,14 @@ export default function ChatPage() {
               </div>
 
               {/* Modal Footer */}
-              <div className="p-4 border-t border-[var(--color-border)] bg-[var(--color-muted)]/10 flex justify-end">
+              <div className="p-4 border-t border-border bg-muted/10 flex justify-end">
                 <button
                   onClick={() => {
                     setIsSettingsOpen(false);
                     setPinMessage("");
                     setNewPin("");
                   }}
-                  className="px-4 py-2 bg-[var(--color-muted)] hover:bg-[var(--color-muted)]/80 text-[var(--color-foreground)] rounded-xl text-sm font-semibold transition-colors"
+                  className="px-4 py-2 bg-muted hover:bg-muted/80 text-foreground rounded-xl text-sm font-semibold transition-colors"
                 >
                   Close
                 </button>
