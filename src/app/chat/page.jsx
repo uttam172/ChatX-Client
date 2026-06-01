@@ -60,6 +60,7 @@ export default function ChatPage() {
   const [messageInput, setMessageInput] = useState("");
   const [nudgeShake, setNudgeShake] = useState(false);
   const [isSending, setIsSending] = useState(false);
+  const [firstUnreadMessageId, setFirstUnreadMessageId] = useState(null);
 
   // Settings modal states
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -106,7 +107,12 @@ export default function ChatPage() {
 
       if (recentRes.ok) {
         const recentData = await recentRes.json();
-        setRecentChats(recentData);
+        setRecentChats(recentData.map(c => {
+          if (activeChatRef.current && isSameId(c._id, activeChatRef.current)) {
+            return { ...c, unreadCount: 0 };
+          }
+          return c;
+        }));
       }
     } catch (err) {
       console.error("Failed to fetch users", err);
@@ -175,6 +181,10 @@ export default function ChatPage() {
           }
         })
       );
+
+      // Find the first unread message from the peer
+      const firstUnread = decrypted.find(m => !m.isNudge && !isSameId(m.senderId, parsedUser) && !m.read);
+      setFirstUnreadMessageId(firstUnread ? firstUnread._id : null);
 
       setMessages(decrypted);
     } catch (err) {
@@ -345,32 +355,63 @@ export default function ChatPage() {
         await fetchUsers();
         contactUser = allUsersRef.current.find(u => isSameId(u._id, contactId));
       }
+      
+      const isActive = isSameId(contactId, activeChatRef.current);
+      const isPeerMessage = !isSameId(msg.senderId, parsedUser);
+
       if (contactUser) {
         setRecentChats(prev => {
           const filtered = prev.filter(c => !isSameId(c._id, contactId));
+          const existing = prev.find(c => isSameId(c._id, contactId));
+          
+          let currentUnread = existing?.unreadCount || 0;
+          if (!isActive && isPeerMessage) {
+            currentUnread += 1;
+          }
+          
           const updatedContact = {
             ...contactUser,
-            latestMessage: msg
+            latestMessage: msg,
+            unreadCount: currentUnread
           };
           return [updatedContact, ...filtered];
         });
+
+        if (isActive && isPeerMessage) {
+          // If active chat, mark as read on the backend
+          const token = localStorage.getItem("token");
+          if (token) {
+            fetch(`${API_URL}/api/users/read/${contactId}`, {
+              method: "POST",
+              headers: { Authorization: `Bearer ${token}` }
+            }).catch(err => console.error("Error marking read:", err));
+          }
+        }
+      }
+
+      // Play alert sound for any incoming peer message
+      if (isPeerMessage) {
+        try {
+          const audio = new Audio("/media/bubble-pop-up-alert-notification.mp3");
+          audio.play().catch(e => console.log("Audio playback was blocked or failed:", e));
+        } catch {}
       }
 
       if (msg.isNudge) {
         setNudgeShake(true);
         try {
-          const audio = new Audio("/media/sounds/bell-notification.mp3");
+          const audio = new Audio("/media/bell-notification.mp3");
           audio.play().catch(e => console.log("Audio playback was blocked or failed:", e));
         } catch {}
         setTimeout(() => setNudgeShake(false), 800);
 
-        if (isSameId(contactId, activeChatRef.current)) {
+        if (isActive) {
           setMessages(prev => [...prev, { ...msg, text: "⚡ Sent a Nudge!" }]);
         }
         return;
       }
 
-      if (isSameId(contactId, activeChatRef.current)) {
+      if (isActive) {
         try {
           const privateKey = await getPrivateKey(parsedUser.hikeId);
           if (privateKey) {
@@ -390,7 +431,10 @@ export default function ChatPage() {
                 privateKey
               );
             }
-            setMessages(prev => [...prev, { ...msg, text: decryptedText }]);
+            
+            // Add the new message as normal
+            const newMsg = { ...msg, text: decryptedText, read: true };
+            setMessages(prev => [...prev, newMsg]);
           }
         } catch (err) {
           console.error("Failed to decrypt received message with both keys", err);
@@ -410,9 +454,11 @@ export default function ChatPage() {
       if (contactUser) {
         setRecentChats(prev => {
           const filtered = prev.filter(c => !isSameId(c._id, contactId));
+          const existing = prev.find(c => isSameId(c._id, contactId));
           const updatedContact = {
             ...contactUser,
-            latestMessage: msg
+            latestMessage: msg,
+            unreadCount: existing?.unreadCount || 0
           };
           return [updatedContact, ...filtered];
         });
@@ -508,19 +554,29 @@ export default function ChatPage() {
   const selectChat = useCallback((user) => {
     setSearchQuery("");
     
-    // Add to recent chats list if not already there (appended to end to preserve sorting until message is sent)
+    // Set active chat and load history immediately to prevent race conditions
+    setActiveChat(user);
+    if (currentUser) {
+      fetchHistory(user, currentUser);
+    }
+
+    // Reset unread count locally and ensure user is in recent list
     setRecentChats(prev => {
       const exists = prev.find(c => isSameId(c._id, user._id));
-      return exists ? prev : [...prev, user];
-    });
-
-    fetchUsers().then(() => {
-      const latestPeer = allUsersRef.current.find(u => isSameId(u._id, user._id)) || user;
-      setActiveChat(latestPeer);
-      if (currentUser) {
-        fetchHistory(latestPeer, currentUser);
+      if (exists) {
+        return prev.map(c => {
+          if (isSameId(c._id, user._id)) {
+            return { ...c, unreadCount: 0 };
+          }
+          return c;
+        });
+      } else {
+        return [...prev, { ...user, unreadCount: 0 }];
       }
     });
+
+    // Re-fetch users list in the background
+    fetchUsers();
   }, [currentUser, fetchHistory, fetchUsers]);
 
   // ── Hidden Vault toggle ─────────────────────────────────
@@ -904,6 +960,8 @@ export default function ChatPage() {
                       className={`p-3 flex items-center gap-3 rounded-xl cursor-pointer transition-all ${
                         isActive
                           ? "bg-indigo-500/15 border-l-4 border-indigo-600 pl-2"
+                          : user.unreadCount > 0
+                          ? "bg-indigo-500/5 border-l-4 border-indigo-500/40 pl-2 hover:bg-indigo-500/10"
                           : "hover:bg-muted/50"
                       }`}
                     >
@@ -918,22 +976,33 @@ export default function ChatPage() {
                       {/* User Info & Last Message */}
                       <div className="flex-1 min-w-0 overflow-hidden">
                         <div className="flex justify-between items-baseline mb-0.5">
-                          <p className="font-semibold text-sm text-foreground truncate">
+                          <p className={`font-semibold text-sm truncate ${user.unreadCount > 0 ? "text-indigo-600 font-bold dark:text-indigo-400" : "text-foreground"}`}>
                             @{user.hikeId}
                           </p>
                           {latestMsg && (
-                            <span className="text-[10px] text-muted-foreground shrink-0 font-medium ml-1">
+                            <span className={`text-[10px] shrink-0 font-medium ml-1 ${user.unreadCount > 0 ? "text-indigo-600 font-bold dark:text-indigo-400" : "text-muted-foreground"}`}>
                               {formatMessageTime(latestMsg.createdAt)}
                             </span>
                           )}
                         </div>
-                        <p className="text-xs text-muted-foreground truncate pr-2">
-                          {latestMsg ? (
-                            decryptedLastMessages[user._id]?.text || "🔒 [Decrypting...]"
-                          ) : (
-                            "No messages yet. Say hi! 👋"
+                        <div className="flex justify-between items-center pr-1 gap-2">
+                          <p className={`text-xs truncate flex-1 ${user.unreadCount > 0 ? "text-foreground font-semibold" : "text-muted-foreground"}`}>
+                            {latestMsg ? (
+                              decryptedLastMessages[user._id]?.text || "🔒 [Decrypting...]"
+                            ) : (
+                              "No messages yet. Say hi! 👋"
+                            )}
+                          </p>
+                          {user.unreadCount > 0 && (
+                            <motion.span
+                              initial={{ scale: 0 }}
+                              animate={{ scale: 1 }}
+                              className="bg-indigo-600 text-white text-[10px] font-bold h-5 min-w-5 px-1.5 rounded-full flex items-center justify-center shadow-md animate-pulse shrink-0"
+                            >
+                              {user.unreadCount}
+                            </motion.span>
                           )}
-                        </p>
+                        </div>
                       </div>
                     </motion.div>
                   );
@@ -1047,38 +1116,48 @@ export default function ChatPage() {
               )}
               <AnimatePresence>
                 {messages.map((msg, idx) => {
-                  if (msg.isNudge) {
-                    const isMine = isSameId(msg.senderId, currentUser);
-                    return (
-                      <motion.div
-                        key={idx}
-                        initial={{ opacity: 0, scale: 0.9 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        transition={{ duration: 0.2 }}
-                        className="self-center my-2.5 px-4 py-2 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 text-xs flex items-center gap-2 shadow-sm font-medium"
-                      >
-                        <Zap className="w-4 h-4 text-amber-500 animate-bounce" />
-                        <span>
-                          {isMine ? "You sent a nudge!" : `@${activeChat?.hikeId || "Someone"} sent you a nudge!`}
-                        </span>
-                      </motion.div>
-                    );
-                  }
                   const isMine = isSameId(msg.senderId, currentUser);
+                  const isFirstUnread = firstUnreadMessageId && msg._id === firstUnreadMessageId;
+                  
                   return (
-                    <motion.div
-                      key={idx}
-                      initial={{ opacity: 0, y: 16, scale: 0.92 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      transition={{ type: "spring", bounce: 0.35, duration: 0.4 }}
-                      className={`max-w-[70%] px-4 py-2.5 rounded-2xl shadow-sm ${
-                        isMine
-                          ? "self-end bg-indigo-600 text-white rounded-tr-sm"
-                          : "self-start bg-card text-foreground rounded-tl-sm border border-border"
-                      }`}
-                    >
-                      <p className="text-sm wrap-break-word leading-relaxed">{msg.text}</p>
-                    </motion.div>
+                    <React.Fragment key={msg._id || idx}>
+                      {isFirstUnread && (
+                        <div className="col-span-full flex items-center justify-center my-6">
+                          <div className="grow border-t border-rose-500/30"></div>
+                          <span className="mx-4 text-xs font-semibold text-rose-500 tracking-wider uppercase bg-rose-500/10 px-3.5 py-1.5 rounded-full shadow-sm border border-rose-500/20">
+                            New Messages
+                          </span>
+                          <div className="grow border-t border-rose-500/30"></div>
+                        </div>
+                      )}
+                      
+                      {msg.isNudge ? (
+                        <motion.div
+                          initial={{ opacity: 0, scale: 0.9 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          transition={{ duration: 0.2 }}
+                          className="self-center my-2.5 px-4 py-2 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 text-xs flex items-center gap-2 shadow-sm font-medium"
+                        >
+                          <Zap className="w-4 h-4 text-amber-500 animate-bounce" />
+                          <span>
+                            {isMine ? "You sent a nudge!" : `@${activeChat?.hikeId || "Someone"} sent you a nudge!`}
+                          </span>
+                        </motion.div>
+                      ) : (
+                        <motion.div
+                          initial={{ opacity: 0, y: 16, scale: 0.92 }}
+                          animate={{ opacity: 1, y: 0, scale: 1 }}
+                          transition={{ type: "spring", bounce: 0.35, duration: 0.4 }}
+                          className={`max-w-[70%] px-4 py-2.5 rounded-2xl shadow-sm ${
+                            isMine
+                              ? "self-end bg-indigo-600 text-white rounded-tr-sm"
+                              : "self-start bg-card text-foreground rounded-tl-sm border border-border"
+                          }`}
+                        >
+                          <p className="text-sm wrap-break-word leading-relaxed">{msg.text}</p>
+                        </motion.div>
+                      )}
+                    </React.Fragment>
                   );
                 })}
               </AnimatePresence>
