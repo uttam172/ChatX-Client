@@ -11,7 +11,7 @@ import { useRouter } from "next/navigation";
 import { initiateSocketConnection, getSocket, disconnectSocket } from "@/utils/socket";
 import { encryptMessage, decryptMessage, getPrivateKey, generateE2EEKeys, storePrivateKey, encryptPrivateKeyWithPassword, verifyKeyPair } from "@/utils/crypto";
 import Image from "next/image";
-import { ChatXiconsvg } from "@/media/icons";
+import { ChatXiconsvg } from "@/assets/icons";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
@@ -463,7 +463,7 @@ export default function ChatPage() {
       // Play alert sound for any incoming peer message
       if (isPeerMessage) {
         try {
-          const audio = new Audio("/media/bubble-pop-up-alert-notification.mp3");
+          const audio = new Audio("/assets/bubble-pop-up-alert-notification.mp3");
           audio.play().catch(e => console.log("Audio playback was blocked or failed:", e));
         } catch {}
       }
@@ -471,7 +471,7 @@ export default function ChatPage() {
       if (msg.isNudge) {
         setNudgeShake(true);
         try {
-          const audio = new Audio("/media/bell-notification.mp3");
+          const audio = new Audio("/assets/bell-notification.mp3");
           audio.play().catch(e => console.log("Audio playback was blocked or failed:", e));
         } catch {}
         setTimeout(() => setNudgeShake(false), 800);
@@ -923,7 +923,7 @@ export default function ChatPage() {
     
     // Play loop ringing sound
     try {
-      const audio = new Audio("/media/guitar-notification.mp3");
+      const audio = new Audio("/assets/guitar-notification.mp3");
       audio.loop = true;
       audio.play().catch(e => console.log("Calling sound failed to play:", e));
       callingAudioRef.current = audio;
@@ -940,7 +940,7 @@ export default function ChatPage() {
           }
           // Play connected sound
           try {
-            const connectedAudio = new Audio("/media/sci-fi-confirmation.mp3");
+            const connectedAudio = new Audio("/assets/sci-fi-confirmation.mp3");
             connectedAudio.play().catch(e => console.log("Connected sound failed to play:", e));
           } catch {}
           return "connected";
