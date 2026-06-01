@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Search, Settings, MessageSquare, Phone, Video,
   MoreVertical, Send, Lock, Unlock, Zap, X, Loader2, LogOut, Copy, Check,
-  Trash, ShieldCheck
+  Trash, ShieldCheck, Smile, CornerUpLeft
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { initiateSocketConnection, getSocket, disconnectSocket } from "@/utils/socket";
@@ -76,6 +76,38 @@ export default function ChatPage() {
   const [isCameraOn, setIsCameraOn] = useState(true);
 
   const callingAudioRef = useRef(null);
+
+  // Reply and Reaction states
+  const [replyingToMessage, setReplyingToMessage] = useState(null);
+  const [hoveredMessageId, setHoveredMessageId] = useState(null);
+  const [activeMessageReactionId, setActiveMessageReactionId] = useState(null);
+  const [expandedMessageReactionId, setExpandedMessageReactionId] = useState(null);
+  const [activeReactionTab, setActiveReactionTab] = useState("smileys");
+
+  const hoverTimeoutRef = useRef(null);
+
+  const handleMessageMouseEnter = useCallback((messageId) => {
+    if (hoverTimeoutRef.current) {
+      clearTimeout(hoverTimeoutRef.current);
+      hoverTimeoutRef.current = null;
+    }
+    setHoveredMessageId(messageId);
+  }, []);
+
+  const handleMessageMouseLeave = useCallback((messageId) => {
+    if (hoverTimeoutRef.current) {
+      clearTimeout(hoverTimeoutRef.current);
+    }
+    hoverTimeoutRef.current = setTimeout(() => {
+      setHoveredMessageId(currentId => {
+        if (currentId === messageId) {
+          setActiveMessageReactionId(null);
+          return null;
+        }
+        return currentId;
+      });
+    }, 350);
+  }, []);
 
   // Settings modal states
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -538,6 +570,15 @@ export default function ChatPage() {
       }
     });
 
+    socket?.on("message_unsended", ({ messageId }) => {
+      setMessages(prev => prev.filter(m => m._id !== messageId));
+      setReplyingToMessage(prev => prev?._id === messageId ? null : prev);
+    });
+
+    socket?.on("message_reaction", ({ messageId, reactions }) => {
+      setMessages(prev => prev.map(m => m._id === messageId ? { ...m, reactions } : m));
+    });
+
     return () => { disconnectSocket(); };
   }, [router, fetchUsers, checkPrivateKey]);
 
@@ -592,6 +633,9 @@ export default function ChatPage() {
   // ── Select a chat contact ───────────────────────────────
   const selectChat = useCallback((user) => {
     setSearchQuery("");
+    setReplyingToMessage(null);
+    setExpandedMessageReactionId(null);
+    setActiveReactionTab("smileys");
     
     // Set active chat and load history immediately to prevent race conditions
     setActiveChat(user);
@@ -680,8 +724,10 @@ export default function ChatPage() {
         receiverId: activeChat._id,
         ...payload,
         isNudge: false,
+        replyTo: replyingToMessage ? replyingToMessage._id : null,
       });
       setMessageInput("");
+      setReplyingToMessage(null);
     } catch (err) {
       console.error("Encryption failed:", err.message);
       alert(`Encryption failed: ${err.message}`);
@@ -1399,18 +1445,169 @@ export default function ChatPage() {
                           </span>
                         </motion.div>
                       ) : (
-                        <motion.div
-                          initial={{ opacity: 0, y: 16, scale: 0.92 }}
-                          animate={{ opacity: 1, y: 0, scale: 1 }}
-                          transition={{ type: "spring", bounce: 0.35, duration: 0.4 }}
-                          className={`max-w-[70%] px-4 py-2.5 rounded-2xl shadow-sm ${
-                            isMine
-                              ? "self-end bg-indigo-600 text-white rounded-tr-sm"
-                              : "self-start bg-card text-foreground rounded-tl-sm border border-border"
+                        <div
+                          onMouseEnter={() => handleMessageMouseEnter(msg._id)}
+                          onMouseLeave={() => handleMessageMouseLeave(msg._id)}
+                          className={`flex flex-col relative max-w-[75%] group mb-2.5 ${
+                            isMine ? "self-end items-end" : "self-start items-start"
                           }`}
                         >
-                          <p className="text-sm wrap-break-word leading-relaxed">{msg.text}</p>
-                        </motion.div>
+                          {/* Floating Reaction & Action Bar */}
+                          {hoveredMessageId === msg._id && (
+                            <div className={`absolute top-1/2 -translate-y-1/2 flex items-center gap-1 bg-card border border-border rounded-full p-1 shadow-lg backdrop-blur-md z-30 transition-all ${
+                              isMine ? "left-[-95px]" : "right-[-95px]"
+                            }`}>
+                              {/* Smile reaction picker */}
+                              <div className="relative">
+                                <button
+                                  onClick={() => {
+                                    setActiveMessageReactionId(prev => prev === msg._id ? null : msg._id);
+                                    setExpandedMessageReactionId(null);
+                                    setActiveReactionTab("smileys");
+                                  }}
+                                  className="p-1 hover:bg-muted text-muted-foreground hover:text-foreground rounded-full transition-colors cursor-pointer animate-fade-in"
+                                  title="React"
+                                >
+                                  <Smile className="w-3.5 h-3.5" />
+                                </button>
+                                
+                                <AnimatePresence>
+                                  {activeMessageReactionId === msg._id && (
+                                    <motion.div
+                                      initial={{ opacity: 0, scale: 0.8, y: 10 }}
+                                      animate={{ opacity: 1, scale: 1, y: 0 }}
+                                      exit={{ opacity: 0, scale: 0.8, y: 10 }}
+                                      transition={{ type: "spring", stiffness: 300, damping: 25 }}
+                                      className={`absolute bottom-8 z-40 bg-card/95 border border-border shadow-2xl backdrop-blur-md border-indigo-500/10 items-center gap-1.5 p-1.5 rounded-full flex ${
+                                        isMine ? "right-0 origin-bottom-right" : "left-0 origin-bottom-left"
+                                      }`}
+                                    >
+                                      {/* Standard 6 Emojis Horizontal Bar */}
+                                      {["❤️", "👍", "😂", "😮", "😢", "🔥"].map((emoji) => (
+                                        <button
+                                          key={emoji}
+                                          type="button"
+                                          onClick={() => {
+                                            const socket = getSocket();
+                                            socket?.emit("react_to_message", { messageId: msg._id, emoji });
+                                            setActiveMessageReactionId(null);
+                                          }}
+                                          className="text-base hover:scale-135 hover:-translate-y-1 transition-all duration-150 p-1 cursor-pointer transform origin-bottom active:scale-90"
+                                        >
+                                          {emoji}
+                                        </button>
+                                      ))}
+
+                                      {/* Plus Button */}
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setActiveMessageReactionId(null);
+                                          setExpandedMessageReactionId(msg._id);
+                                        }}
+                                        className="w-6 h-6 flex items-center justify-center text-xs font-bold bg-muted hover:bg-indigo-500 hover:text-white rounded-full text-muted-foreground transition-all cursor-pointer ml-0.5 active:scale-90 shrink-0"
+                                        title="More Reactions"
+                                      >
+                                        +
+                                      </button>
+                                    </motion.div>
+                                  )}
+                                </AnimatePresence>
+                              </div>
+
+                              {/* Reply icon */}
+                              <button
+                                onClick={() => setReplyingToMessage(msg)}
+                                className="p-1 hover:bg-muted text-muted-foreground hover:text-foreground rounded-full transition-colors cursor-pointer animate-fade-in"
+                                title="Reply"
+                              >
+                                <CornerUpLeft className="w-3.5 h-3.5" />
+                              </button>
+
+                              {/* Unsend / Trash icon */}
+                              {isMine && (
+                                <button
+                                  onClick={() => {
+                                    const confirmUnsend = confirm("Are you sure you want to unsend this message? It will be deleted for everyone.");
+                                    if (confirmUnsend) {
+                                      const socket = getSocket();
+                                      socket?.emit("unsend_message", { messageId: msg._id });
+                                    }
+                                  }}
+                                  className="p-1 hover:bg-rose-500/10 text-rose-500 rounded-full transition-colors cursor-pointer animate-fade-in"
+                                  title="Unsend"
+                                >
+                                  <Trash className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                            </div>
+                          )}
+
+                          {/* Message Bubble itself */}
+                          <motion.div
+                            initial={{ opacity: 0, y: 8, scale: 0.96 }}
+                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                            transition={{ type: "spring", bounce: 0.25, duration: 0.3 }}
+                            className={`px-4 py-2.5 rounded-2xl shadow-xs relative ${
+                              isMine
+                                ? "bg-indigo-600 text-white rounded-tr-sm"
+                                : "bg-card text-foreground rounded-tl-sm border border-border"
+                            }`}
+                          >
+                            {/* Reply Quote Block inside bubble */}
+                            {msg.replyTo && (() => {
+                              const parentMsg = messages.find(m => m._id === msg.replyTo);
+                              return (
+                                <div className={`text-xs p-2 mb-1.5 rounded-xl border-l-4 font-medium flex flex-col gap-0.5 max-w-full truncate ${
+                                  isMine
+                                    ? "bg-indigo-700/40 border-indigo-400 text-indigo-100"
+                                    : "bg-muted/80 border-indigo-500 text-muted-foreground"
+                                }`}>
+                                  <span className="text-[9px] font-bold uppercase tracking-wider opacity-85">
+                                    {parentMsg ? (isSameId(parentMsg.senderId, currentUser) ? "You" : activeChat.hikeId) : "Secure Reply"}
+                                  </span>
+                                  <span className="truncate italic text-[11px] opacity-90">
+                                    {parentMsg ? parentMsg.text : "🔒 Quoted message is unavailable"}
+                                  </span>
+                                </div>
+                              );
+                            })()}
+
+                            <p className="text-sm wrap-break-word leading-relaxed">{msg.text}</p>
+                          </motion.div>
+
+                          {/* Reactions Badges at Corner (Futuristic Half-in, Half-out) */}
+                          {msg.reactions && msg.reactions.length > 0 && (
+                            <motion.div
+                              initial={{ opacity: 0, scale: 0.75, y: 5 }}
+                              animate={{ opacity: 1, scale: 1, y: 0 }}
+                              exit={{ opacity: 0, scale: 0.75, y: 5 }}
+                              className={`absolute bottom-[-10px] flex items-center gap-0.5 bg-card/95 border border-border shadow-md rounded-full px-1.5 py-0.5 z-20 select-none backdrop-blur-md transition-all hover:scale-110 duration-150 cursor-pointer ${
+                                isMine ? "right-3.5" : "left-3.5"
+                              }`}
+                            >
+                              {Array.from(new Set(msg.reactions.map(r => r.emoji))).map((emoji, eIdx) => (
+                                <span
+                                  key={eIdx}
+                                  className="text-xs transition-transform hover:scale-125 duration-100"
+                                  title={msg.reactions.filter(r => r.emoji === emoji).map(r => isSameId(r.userId, currentUser) ? "You" : activeChat.hikeId).join(", ")}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    const socket = getSocket();
+                                    socket?.emit("react_to_message", { messageId: msg._id, emoji });
+                                  }}
+                                >
+                                  {emoji}
+                                </span>
+                              ))}
+                              {msg.reactions.length > 1 && (
+                                <span className="text-[10px] font-extrabold text-muted-foreground ml-0.5">
+                                  {msg.reactions.length}
+                                </span>
+                              )}
+                            </motion.div>
+                          )}
+                        </div>
                       )}
                     </React.Fragment>
                   );
@@ -1419,10 +1616,34 @@ export default function ChatPage() {
               <div ref={messagesEndRef} />
             </div>
 
+            {/* Replying Quote Composer Preview */}
+            {replyingToMessage && (
+              <div className="bg-card border-t border-x border-border max-w-4xl mx-auto rounded-t-2xl px-5 py-3 flex items-center justify-between gap-4 animate-slide-up shadow-xs">
+                <div className="flex items-center gap-2.5 overflow-hidden">
+                  <div className="w-1 border-l-4 border-indigo-500 h-8 rounded-full shrink-0" />
+                  <div className="flex flex-col truncate">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-indigo-500">
+                      Replying to {isSameId(replyingToMessage.senderId, currentUser) ? "yourself" : activeChat.hikeId}
+                    </span>
+                    <span className="text-xs text-muted-foreground truncate italic">
+                      {replyingToMessage.text}
+                    </span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setReplyingToMessage(null)}
+                  className="p-1 hover:bg-muted text-muted-foreground hover:text-foreground rounded-full transition-colors shrink-0 cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            )}
+
             {/* Input Bar */}
             <form
               onSubmit={sendMessage}
-              className="p-4 bg-card/80 backdrop-blur-md border-t border-border"
+              className={`p-4 bg-card/80 backdrop-blur-md border-t border-border ${replyingToMessage ? "rounded-b-2xl border-t-0" : ""}`}
             >
               <div className="flex items-center gap-2 max-w-4xl mx-auto">
                 {/* Nudge Button */}
@@ -1828,6 +2049,91 @@ export default function ChatPage() {
                 >
                   Verified
                 </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Centered Full Emoji Picker Modal Overlay */}
+      <AnimatePresence>
+        {expandedMessageReactionId && (
+          <div 
+            onClick={() => setExpandedMessageReactionId(null)}
+            className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-50 p-4"
+          >
+            <motion.div
+              onClick={(e) => e.stopPropagation()}
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              transition={{ type: "spring", duration: 0.3 }}
+              className="bg-card border border-border shadow-2xl rounded-2xl w-80 h-80 flex flex-col overflow-hidden text-foreground"
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-muted/20 shrink-0">
+                <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                  <Smile className="w-4 h-4 text-indigo-500" />
+                  React to Message
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setExpandedMessageReactionId(null)}
+                  className="p-1 hover:bg-muted text-muted-foreground hover:text-foreground rounded-full transition-colors cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Category Selection Tabs */}
+              <div className="flex items-center gap-1.5 px-4 py-2 border-b border-border bg-card shrink-0 overflow-x-auto scrollbar-none">
+                {[
+                  { id: "smileys", label: "Smileys", icon: "😀" },
+                  { id: "gestures", label: "Gestures", icon: "👍" },
+                  { id: "expressive", label: "Expressive", icon: "🔥" }
+                ].map((tab) => (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => setActiveReactionTab(tab.id)}
+                    className={`px-2.5 py-1 text-xs rounded-xl font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                      activeReactionTab === tab.id
+                        ? "bg-indigo-600 text-white shadow-sm"
+                        : "bg-muted text-muted-foreground hover:bg-muted/80"
+                    }`}
+                  >
+                    <span>{tab.icon}</span>
+                    <span>{tab.label}</span>
+                  </button>
+                ))}
+              </div>
+
+              {/* Emoji Grid list */}
+              <div className="flex-1 overflow-y-auto p-4 grid grid-cols-6 gap-2 align-middle scrollbar-thin overflow-x-hidden select-none">
+                {(() => {
+                  const emojisList =
+                    activeReactionTab === "smileys"
+                      ? ["😀","😃","😄","😁","😆","😅","😂","🤣","😊","😇","🙂","🙃","😉","😍","🥰","😘","😋","😛","😜","🤪","😎","🥳","😏","😒","😔","🥺","😢","😭","😤","😡","🤯","😳","🥵","🥶","😱","🤔","🫣","🤭","🤫","😶","😐","😑","😬","🫠","🙄","😯","😴","🥴"]
+                      : activeReactionTab === "gestures"
+                      ? ["👍","👎","👊","✊","🤛","🤜","🙌","👏","🫶","👐","🤲","🤝","✌️","🤟","🤘","👌","🤌","🤏","👈","👉","👆","👇","☝️","👋","✍️","💪","🙏","🖕","❤️","🧡","💛","💚","💙","💜","🖤","🤍","🤎","💔","❣️","💕","💞","💓","💗","💖","💘","💝"]
+                      : ["🔥","✨","🌟","⭐","🎉","💯","🚀","💡","👀","🎈","🎁","🎨","🎭","🎮","🎯","🍿","🍔","🍕","🌮","🍣","🍩","🍪","🎂","🧁","🍫","🍬","🍺","🍻","🥂","🍷","☕","🍵","🌏","☀️","🌙","☁️","🌈","☔","⛄","🐾","🐱","🐶","🦁","🦄","🐼","🐨","🦊"];
+                  
+                  return emojisList.map((emoji) => (
+                    <button
+                      key={emoji}
+                      type="button"
+                      onClick={() => {
+                        const socket = getSocket();
+                        socket?.emit("react_to_message", { messageId: expandedMessageReactionId, emoji });
+                        setActiveMessageReactionId(null);
+                        setExpandedMessageReactionId(null);
+                      }}
+                      className="text-xl hover:scale-135 hover:-translate-y-1 transition-all duration-150 p-1 flex items-center justify-center cursor-pointer transform origin-bottom active:scale-90"
+                    >
+                      {emoji}
+                    </button>
+                  ));
+                })()}
               </div>
             </motion.div>
           </div>
