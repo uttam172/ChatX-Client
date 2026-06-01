@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { MessageCircle, ShieldCheck, Mail, Lock, User, ArrowRight, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { loginIllustration } from "@/assets/illustrations";
+import { authIllustration } from "@/assets/illustrations";
 import { generateE2EEKeys, storePrivateKey, encryptPrivateKeyWithPassword, decryptPrivateKeyWithPassword } from "@/utils/crypto";
 
 // Slowly Floating Color-Shifting Blob Component
@@ -68,7 +68,7 @@ export default function AuthPage() {
     try {
       const endpoint = isLogin ? "/api/auth/login" : "/api/auth/signup";
       const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
-      
+
       let payload = isLogin
         ? { identifier: formData.identifier, password: formData.password }
         : { email: formData.email, password: formData.password };
@@ -81,7 +81,7 @@ export default function AuthPage() {
         payload.hikeId = formData.hikeId;
         payload.publicKey = keys.publicKeyBase64;
         localPrivateKey = keys.privateKey;
-        
+
         // Encrypt and back up the private key using user password
         const backupEncrypted = await encryptPrivateKeyWithPassword(keys.privateKey, formData.password);
         payload.encryptedPrivateKey = backupEncrypted;
@@ -158,48 +158,48 @@ export default function AuthPage() {
 
   return (
     <div className="min-h-screen w-full flex items-center justify-center bg-black relative overflow-hidden selection:bg-indigo-500/30 selection:text-white py-12 md:py-16">
-      
+
       {/* Sleek structural grid pattern overlay for extra visual depth */}
-      <div 
-        className="absolute inset-0 bg-[linear-gradient(to_right,#0c0f1d_1px,transparent_1px),linear-gradient(to_bottom,#0c0f1d_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_50%,#000_70%,transparent_100%)] opacity-40 pointer-events-none" 
+      <div
+        className="absolute inset-0 bg-[linear-gradient(to_right,#0c0f1d_1px,transparent_1px),linear-gradient(to_bottom,#0c0f1d_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_50%,#000_70%,transparent_100%)] opacity-40 pointer-events-none"
       />
 
       {/* Smooth GPU-Accelerated Floating Blobs traveling randomly across the viewport */}
-      <FloatingBlob 
-        size={420} 
-        colors={colors1} 
+      <FloatingBlob
+        size={420}
+        colors={colors1}
         xPath={["-10vw", "75vw", "20vw", "85vw", "-10vw"]}
         yPath={["-10vh", "35vh", "80vh", "15vh", "-10vh"]}
         scalePath={[1, 1.25, 0.9, 1.15, 1]}
         duration={32}
       />
-      <FloatingBlob 
-        size={460} 
-        colors={colors2} 
+      <FloatingBlob
+        size={460}
+        colors={colors2}
         xPath={["5vw", "15vw", "65vw", "5vw", "90vw"]}
         yPath={["5vh", "25vh", "5vh", "50vh", "90vh"]}
         scalePath={[1, 1.15, 0.85, 1.2, 1]}
         duration={36}
       />
-      <FloatingBlob 
-        size={350} 
-        colors={colors3} 
+      <FloatingBlob
+        size={350}
+        colors={colors3}
         xPath={["10vw", "5vw", "45vw", "95vw", "80vw"]}
         yPath={["10vh", "30vh", "25vh", "65vh", "10vh"]}
         scalePath={[0.9, 1.1, 0.95, 1.05, 0.9]}
         duration={26}
       />
-      <FloatingBlob 
-        size={380} 
-        colors={colors4} 
+      <FloatingBlob
+        size={380}
+        colors={colors4}
         xPath={["5vw", "80vw", "25vw", "10vw", "5vw"]}
         yPath={["70vh", "15vh", "45vh", "85vh", "75vh"]}
         scalePath={[1.1, 0.85, 1.15, 0.9, 1.1]}
         duration={30}
       />
-      <FloatingBlob 
-        size={580} 
-        colors={colors5} 
+      <FloatingBlob
+        size={580}
+        colors={colors5}
         xPath={["0vw", "20vw", "50vw", "100vw", "10vw"]}
         yPath={["100vh", "90vh", "30vh", "200vh", "15vh"]}
         scalePath={[1.6, 1.85, 0.15, 1.9, 0.5]}
@@ -207,7 +207,7 @@ export default function AuthPage() {
       />
 
       {/* Main Premium Dual-Column Auth Panel Container */}
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, scale: 0.96, y: 15 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
@@ -218,7 +218,7 @@ export default function AuthPage() {
 
         {/* LEFT COLUMN: Majestic static/animated illustration column (Desktop only) */}
         <div className="hidden md:flex md:col-span-6 flex-col justify-center items-center p-12 bg-linear-to-br from-slate-950/60 via-slate-900/30 to-indigo-950/15 border-r border-slate-800/40 relative overflow-hidden">
-          
+
           {/* Subtle animated light reflection overlay */}
           <motion.div
             animate={{ opacity: [0.1, 0.25, 0.1] }}
@@ -227,8 +227,8 @@ export default function AuthPage() {
           />
 
           <motion.div
-            animate={{ 
-              y: [0, -12, 0] 
+            animate={{
+              y: [0, -12, 0]
             }}
             transition={{
               y: { duration: 6, repeat: Infinity, ease: "easeInOut" }
@@ -236,8 +236,8 @@ export default function AuthPage() {
             className="w-full max-w-85 aspect-square flex items-center justify-center relative"
           >
             <div className="absolute inset-0 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none transform scale-75" />
-            <Image 
-              src={loginIllustration} 
+            <Image
+              src={authIllustration}
               alt="ChatX secure encryption illustration"
               className="w-full h-full object-contain relative z-10 filter drop-shadow-[0_12px_40px_rgba(99,102,241,0.3)] select-none"
               loading="eager"
@@ -245,7 +245,7 @@ export default function AuthPage() {
             />
           </motion.div>
 
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.25, duration: 0.5 }}
@@ -262,7 +262,7 @@ export default function AuthPage() {
 
         {/* RIGHT COLUMN: Highly polished, fully responsive authentication form */}
         <div className="col-span-12 md:col-span-6 flex flex-col justify-center p-8 md:p-12 relative">
-          
+
           {/* Mobile Illustration Float (Only visible on screens under md breakpoint) */}
           <div className="md:hidden flex justify-center mb-6">
             <motion.div
@@ -271,8 +271,8 @@ export default function AuthPage() {
               className="w-24 h-24 relative"
             >
               <div className="absolute inset-0 bg-indigo-500/15 rounded-full blur-xl pointer-events-none transform scale-75" />
-              <Image 
-                src={loginIllustration} 
+              <Image
+                src={authIllustration}
                 alt="ChatX Illustration"
                 className="w-full h-full object-contain filter drop-shadow-[0_8px_20px_rgba(99,102,241,0.25)] select-none"
                 loading="eager"
@@ -281,13 +281,19 @@ export default function AuthPage() {
           </div>
 
           <div className="text-center md:text-left mb-8">
-            <motion.div 
-              initial={{ scale: 0 }} 
-              animate={{ scale: 1 }} 
+            <motion.div
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
               transition={{ type: "spring", bounce: 0.5, delay: 0.1 }}
               className="w-14 h-14 bg-linear-to-tr from-blue-600 via-indigo-600 to-purple-600 rounded-2xl flex items-center justify-center shadow-[0_4px_20px_rgba(99,102,241,0.4)] mb-4 mx-auto md:mx-0"
             >
-              <MessageCircle className="text-white w-7 h-7" />
+              {/* <MessageCircle className="text-white w-7 h-7" /> */}
+              <Image
+                src={logo}
+                alt="Logo"
+                className="w-7 h-7"
+                loading="eager"
+              />
             </motion.div>
             <h1 className="text-3xl font-extrabold tracking-tight text-white">ChatX</h1>
             <p className="text-sm text-slate-400 mt-2 flex items-center justify-center md:justify-start gap-1">
@@ -296,8 +302,8 @@ export default function AuthPage() {
           </div>
 
           {error && (
-            <motion.div 
-              initial={{ opacity: 0, y: -10 }} 
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
               className="mb-4 p-3 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400 text-sm text-center font-medium"
             >
@@ -306,7 +312,7 @@ export default function AuthPage() {
           )}
 
           <AnimatePresence mode="wait">
-            <motion.form 
+            <motion.form
               key={isLogin ? "login" : "signup"}
               initial={{ opacity: 0, x: isLogin ? -15 : 15 }}
               animate={{ opacity: 1, x: 0 }}
@@ -318,9 +324,9 @@ export default function AuthPage() {
               {!isLogin && (
                 <div className="relative">
                   <User className="absolute left-3.5 top-3.5 w-5 h-5 text-slate-400" />
-                  <input 
-                    type="text" 
-                    placeholder="Hike ID (e.g. alex)" 
+                  <input
+                    type="text"
+                    placeholder="Hike ID (e.g. alex)"
                     value={formData.hikeId}
                     onChange={(e) => setFormData({ ...formData, hikeId: e.target.value })}
                     className="w-full pl-11 pr-4 py-3 rounded-xl border border-slate-800 bg-slate-950/40 focus:bg-slate-950/80 focus:border-indigo-500/60 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all text-white placeholder-slate-500"
@@ -358,9 +364,9 @@ export default function AuthPage() {
               )}
               <div className="relative">
                 <Lock className="absolute left-3.5 top-3.5 w-5 h-5 text-slate-400" />
-                <input 
-                  type="password" 
-                  placeholder="Password" 
+                <input
+                  type="password"
+                  placeholder="Password"
                   value={formData.password}
                   onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                   className="w-full pl-11 pr-4 py-3 rounded-xl border border-slate-800 bg-slate-950/40 focus:bg-slate-950/80 focus:border-indigo-500/60 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all text-white placeholder-slate-500"
@@ -368,7 +374,7 @@ export default function AuthPage() {
                 />
               </div>
 
-              <motion.button 
+              <motion.button
                 whileHover={{ scale: 1.015 }}
                 whileTap={{ scale: 0.985 }}
                 disabled={loading}
@@ -390,7 +396,7 @@ export default function AuthPage() {
             <span className="text-slate-400">
               {isLogin ? "Don't have an account?" : "Already have an account?"}
             </span>
-            <button 
+            <button
               type="button"
               onClick={() => {
                 setIsLogin(!isLogin);
