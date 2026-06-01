@@ -9,6 +9,8 @@ import {
 import { useRouter } from "next/navigation";
 import { initiateSocketConnection, getSocket, disconnectSocket } from "@/utils/socket";
 import { encryptMessage, decryptMessage, getPrivateKey, generateE2EEKeys, storePrivateKey, encryptPrivateKeyWithPassword, verifyKeyPair } from "@/utils/crypto";
+import Image from "next/image";
+import { ChatXicon } from "@/media/icons";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
@@ -357,7 +359,7 @@ export default function ChatPage() {
       if (msg.isNudge) {
         setNudgeShake(true);
         try {
-          const audio = new Audio("/media/bell-notification.mp3");
+          const audio = new Audio("/media/sounds/bell-notification.mp3");
           audio.play().catch(e => console.log("Audio playback was blocked or failed:", e));
         } catch {}
         setTimeout(() => setNudgeShake(false), 800);
@@ -795,11 +797,12 @@ export default function ChatPage() {
       <div className="w-80 h-full border-r border-[var(--color-border)] flex flex-col bg-[var(--color-card)] z-20">
 
         {/* Header */}
-        <div className="p-4 border-b border-[var(--color-border)] flex flex-col gap-3">
+        <div className="p-4 border-b border-(--color-border) flex flex-col gap-3">
           <div className="flex items-center justify-between">
-            <h1 className="text-xl font-bold tracking-tight text-[var(--color-foreground)]">
-              ChatX
-            </h1>
+            <div className="flex justify-start items-center gap-2">
+              <Image src={ChatXicon} alt="" width={35}/>
+              <h1 className="text-xl font-bold tracking-tight text-[var(--color-foreground)]">ChatX</h1>
+            </div>
             <div className="flex items-center gap-2">
               {isVaultOpen && (
                 <button
