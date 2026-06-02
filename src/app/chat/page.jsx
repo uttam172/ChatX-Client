@@ -6,7 +6,7 @@ import {
   Search, Settings, MessageSquare, Phone, Video,
   MoreVertical, Send, Lock, Unlock, Zap, X, Loader2, LogOut, Copy, Check,
   Trash, ShieldCheck, Smile, CornerUpLeft, Paperclip, FileText, Music, Download,
-  ChevronLeft, ChevronRight
+  ChevronLeft, ChevronRight, AlignStartVertical, AlignEndVertical
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { initiateSocketConnection, getSocket, disconnectSocket } from "@/utils/socket";
@@ -1262,7 +1262,7 @@ export default function ChatPage() {
                 className="p-1.5 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground transition-all cursor-pointer hidden md:block"
                 title={isSidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
               >
-                {isSidebarCollapsed ? <ChevronRight className="w-5 h-5" /> : <ChevronLeft className="w-5 h-5" />}
+                {isSidebarCollapsed ? <AlignEndVertical className="w-5 h-5" /> : <AlignStartVertical className="w-5 h-5" />}
               </button>
             </div>
           </div>
