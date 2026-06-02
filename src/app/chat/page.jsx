@@ -1348,10 +1348,10 @@ export default function ChatPage() {
                         whileTap={{ scale: 0.99 }}
                         onClick={() => selectChat(user)}
                         className={`relative cursor-pointer transition-all flex items-center rounded-xl p-3 gap-3 ${isActive
-                            ? "bg-indigo-500/15 border-l-4 border-indigo-600 pl-2"
-                            : user.unreadCount > 0
-                              ? "bg-indigo-500/5 border-l-4 border-indigo-500/40 pl-2 hover:bg-indigo-500/10"
-                              : "hover:bg-muted/50"
+                          ? "bg-indigo-500/15 border-l-4 border-indigo-600 pl-2"
+                          : user.unreadCount > 0
+                            ? "bg-indigo-500/5 border-l-4 border-indigo-500/40 pl-2 hover:bg-indigo-500/10"
+                            : "hover:bg-muted/50"
                           }`}
                       >
                         {/* Dynamic DiceBear Profile Avatar */}
@@ -1439,7 +1439,7 @@ export default function ChatPage() {
                 {currentUser?.hikeId?.charAt(0).toUpperCase() || "?"}
               </div>
               {!isSidebarCollapsed && (
-                <div className="flex flex-col overflow-hidden max-w-[170px] animate-fade-in">
+                <div className="flex flex-col overflow-hidden max-w-42.5 animate-fade-in">
                   <span className="text-sm font-semibold text-foreground truncate">
                     {currentUser?.hikeId ? `${currentUser.hikeId}` : "User"}
                   </span>
@@ -1671,7 +1671,7 @@ export default function ChatPage() {
                         >
                           {/* Floating Reaction & Action Bar */}
                           {hoveredMessageId === msg._id && (
-                            <div className={`absolute top-1/2 -translate-y-1/2 flex items-center gap-1 bg-card border border-border rounded-full p-1 shadow-lg backdrop-blur-md z-30 transition-all ${isMine ? "left-[-95px]" : "right-[-95px]"
+                            <div className={`absolute top-1/2 -translate-y-1/2 flex items-center gap-1 bg-card border border-border rounded-full p-1 shadow-lg backdrop-blur-md z-30 transition-all ${isMine ? "-left-23.75" : "-right-23.75"
                               }`}>
                               {/* Smile reaction picker */}
                               <div className="relative">
@@ -1694,8 +1694,7 @@ export default function ChatPage() {
                                       animate={{ opacity: 1, scale: 1, y: 0 }}
                                       exit={{ opacity: 0, scale: 0.8, y: 10 }}
                                       transition={{ type: "spring", stiffness: 300, damping: 25 }}
-                                      className={`absolute bottom-8 z-40 bg-card/95 border border-border shadow-2xl backdrop-blur-md border-indigo-500/10 items-center gap-1.5 p-1.5 rounded-full flex ${isMine ? "right-0 origin-bottom-right" : "left-0 origin-bottom-left"
-                                        }`}
+                                      className={`absolute bottom-8 z-40 bg-card/95 border border-border shadow-2xl backdrop-blur-md items-center gap-1.5 p-1.5 rounded-full flex ${isMine ? "right-0 origin-bottom-right" : "left-0 origin-bottom-left"}`}
                                     >
                                       {/* Standard 6 Emojis Horizontal Bar */}
                                       {["❤️", "👍", "😂", "😮", "😢", "🔥"].map((emoji) => (
@@ -1764,8 +1763,8 @@ export default function ChatPage() {
                             animate={{ opacity: 1, y: 0, scale: 1 }}
                             transition={{ type: "spring", bounce: 0.25, duration: 0.3 }}
                             className={`px-4 py-2.5 rounded-2xl shadow-xs relative ${isMine
-                                ? "bg-indigo-600 text-white rounded-tr-sm"
-                                : "bg-card text-foreground rounded-tl-sm border border-border"
+                              ? "bg-indigo-600 text-white rounded-tr-sm"
+                              : "bg-card text-foreground rounded-tl-sm border border-border"
                               }`}
                           >
                             {/* Reply Quote Block inside bubble */}
@@ -1773,8 +1772,8 @@ export default function ChatPage() {
                               const parentMsg = messages.find(m => m._id === msg.replyTo);
                               return (
                                 <div className={`text-xs p-2 mb-1.5 rounded-xl border-l-4 font-medium flex flex-col gap-0.5 max-w-full truncate ${isMine
-                                    ? "bg-indigo-700/40 border-indigo-400 text-indigo-100"
-                                    : "bg-muted/80 border-indigo-500 text-muted-foreground"
+                                  ? "bg-indigo-700/40 border-indigo-400 text-indigo-100"
+                                  : "bg-muted/80 border-indigo-500 text-muted-foreground"
                                   }`}>
                                   <span className="text-[9px] font-bold uppercase tracking-wider opacity-85">
                                     {parentMsg ? (isSameId(parentMsg.senderId, currentUser) ? "You" : activeChat.hikeId) : "Secure Reply"}
@@ -1812,8 +1811,8 @@ export default function ChatPage() {
                                   </div>
                                 ) : (
                                   <div className={`mb-2 p-3 rounded-xl flex items-center gap-3 w-64 border shadow-xs ${isMine
-                                      ? "bg-indigo-700/40 border-indigo-500/30 text-white"
-                                      : "bg-muted border-border text-foreground"
+                                    ? "bg-indigo-700/40 border-indigo-500/30 text-white"
+                                    : "bg-muted border-border text-foreground"
                                     }`}>
                                     <FileText className="w-8 h-8 shrink-0 text-indigo-400 animate-pulse" />
                                     <div className="min-w-0 flex-1">
@@ -1855,7 +1854,7 @@ export default function ChatPage() {
                               initial={{ opacity: 0, scale: 0.75, y: 5 }}
                               animate={{ opacity: 1, scale: 1, y: 0 }}
                               exit={{ opacity: 0, scale: 0.75, y: 5 }}
-                              className={`absolute bottom-[-10px] flex items-center gap-0.5 bg-card/95 border border-border shadow-md rounded-full px-1.5 py-0.5 z-20 select-none backdrop-blur-md transition-all hover:scale-110 duration-150 cursor-pointer ${isMine ? "right-3.5" : "left-3.5"
+                              className={`absolute -bottom-2.5 flex items-center gap-0.5 bg-card/95 border border-border shadow-md rounded-full px-1.5 py-0.5 z-20 select-none backdrop-blur-md transition-all hover:scale-110 duration-150 cursor-pointer ${isMine ? "right-3.5" : "left-3.5"
                                 }`}
                             >
                               {Array.from(new Set(msg.reactions.map(r => r.emoji))).map((emoji, eIdx) => (
@@ -2270,7 +2269,7 @@ export default function ChatPage() {
           <div className="flex-1 flex flex-col items-center justify-center relative my-8">
             {callType === "video" && callStatus === "connected" ? (
               <div className="w-full h-full max-w-2xl aspect-video bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden relative shadow-2xl">
-                <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-indigo-950/50 to-slate-900">
+                <div className="absolute inset-0 flex items-center justify-center bg-linear-to-br from-indigo-950/50 to-slate-900">
                   <motion.img
                     animate={{ scale: [1, 1.05, 1] }}
                     transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
@@ -2301,7 +2300,7 @@ export default function ChatPage() {
                   transition={{ duration: 2, repeat: Infinity, delay: 0.5 }}
                   className="absolute inset-0 bg-purple-500 rounded-full"
                 />
-                <img
+                <Image
                   src={"https://api.dicebear.com/7.x/initials/svg?seed=" + activeChat.hikeId + "&radius=50&backgroundType=gradientLinear"}
                   alt={activeChat.hikeId}
                   className="w-32 h-32 rounded-full border-4 border-indigo-600 relative z-10 shadow-2xl"
@@ -2327,7 +2326,7 @@ export default function ChatPage() {
               }
               title={isMuted ? "Unmute" : "Mute"}
             >
-              <Phone className="w-6 h-6 rotate-[135deg]" />
+              <Phone className="w-6 h-6 rotate-135" />
             </button>
 
             <button
@@ -2335,7 +2334,7 @@ export default function ChatPage() {
               className="p-5 bg-rose-600 hover:bg-rose-700 rounded-full shadow-lg hover:shadow-rose-600/20 transition-all border border-rose-500 cursor-pointer"
               title="Hang Up"
             >
-              <Phone className="w-8 h-8 rotate-[135deg]" />
+              <Phone className="w-8 h-8 rotate-135" />
             </button>
 
             {callType === "video" && (
@@ -2463,8 +2462,8 @@ export default function ChatPage() {
                     type="button"
                     onClick={() => setActiveReactionTab(tab.id)}
                     className={`px-2.5 py-1 text-xs rounded-xl font-bold flex items-center gap-1.5 transition-all cursor-pointer ${activeReactionTab === tab.id
-                        ? "bg-indigo-600 text-white shadow-sm"
-                        : "bg-muted text-muted-foreground hover:bg-muted/80"
+                      ? "bg-indigo-600 text-white shadow-sm"
+                      : "bg-muted text-muted-foreground hover:bg-muted/80"
                       }`}
                   >
                     <span>{tab.icon}</span>
