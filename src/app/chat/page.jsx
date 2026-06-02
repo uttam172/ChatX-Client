@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Search, Settings, MessageSquare, Phone, Video,
   MoreVertical, Send, Lock, Unlock, Zap, X, Loader2, LogOut, Copy, Check,
-  Trash, ShieldCheck, Smile, CornerUpLeft
+  Trash, ShieldCheck, Smile, CornerUpLeft, Paperclip, FileText, Music, Download
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { initiateSocketConnection, getSocket, disconnectSocket } from "@/utils/socket";
@@ -76,6 +76,14 @@ export default function ChatPage() {
   const [isCameraOn, setIsCameraOn] = useState(true);
 
   const callingAudioRef = useRef(null);
+
+  // Media Sharing states
+  const fileInputRef = useRef(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadStatus, setUploadStatus] = useState("");
+  const [activeLightboxImage, setActiveLightboxImage] = useState(null);
+  const [pendingFile, setPendingFile] = useState(null);
+  const [pendingFilePreview, setPendingFilePreview] = useState(null);
 
   // Reply and Reaction states
   const [replyingToMessage, setReplyingToMessage] = useState(null);
@@ -298,6 +306,31 @@ export default function ChatPage() {
     } else {
       return date.toLocaleDateString([], { month: "short", day: "numeric" });
     }
+  }, []);
+
+  // Format date divider text
+  const formatDividerDate = useCallback((dateStr) => {
+    if (!dateStr) return "";
+    const date = new Date(dateStr);
+    const now = new Date();
+    
+    if (date.toDateString() === now.toDateString()) {
+      return "Today";
+    }
+    
+    const yesterday = new Date(now);
+    yesterday.setDate(now.getDate() - 1);
+    if (date.toDateString() === yesterday.toDateString()) {
+      return "Yesterday";
+    }
+    
+    return date.toLocaleDateString([], { weekday: "long", year: "numeric", month: "long", day: "numeric" });
+  }, []);
+
+  // Format actual bubble timestamp
+  const formatBubbleTime = useCallback((dateStr) => {
+    if (!dateStr) return "";
+    return new Date(dateStr).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   }, []);
 
   // Decrypt all recent chats' last messages asynchronously
@@ -699,10 +732,43 @@ export default function ChatPage() {
     }
   };
 
-  // ── Send a message (E2EE encrypted) ────────────────────
+  // ── Handle Media selection and local E2E preview ──────────────────────────
+  const handleFileChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Limit size to 100MB
+    const MAX_SIZE = 100 * 1024 * 1024;
+    if (file.size > MAX_SIZE) {
+      alert("File size exceeds the 100MB limitation. Please select a smaller file.");
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
+
+    if (!activeChat) {
+      alert("Please select a contact to share media.");
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
+
+    setPendingFile(file);
+
+    // If selected file is an image, generate object URL preview
+    if (file.type?.startsWith("image/")) {
+      const url = URL.createObjectURL(file);
+      setPendingFilePreview(url);
+    } else {
+      setPendingFilePreview(null);
+    }
+  };
+
+  // ── Send a message or shared media (E2EE encrypted) ───────────────────────
   const sendMessage = async (e) => {
     e?.preventDefault();
-    if (!messageInput.trim() || !activeChat || isSending) return;
+    if (!activeChat || isSending || isUploading) return;
+
+    // Check if sending pure text and it's empty
+    if (!pendingFile && !messageInput.trim()) return;
 
     if (!activeChat.publicKey) {
       alert("Cannot encrypt: peer has no public key.");
@@ -715,24 +781,114 @@ export default function ChatPage() {
       return;
     }
 
-    setIsSending(true);
     const socket = getSocket();
 
-    try {
-      const payload = await encryptMessage(messageInput, activeChat.publicKey, myPublicKey);
-      socket?.emit("send_message", {
-        receiverId: activeChat._id,
-        ...payload,
-        isNudge: false,
-        replyTo: replyingToMessage ? replyingToMessage._id : null,
-      });
-      setMessageInput("");
-      setReplyingToMessage(null);
-    } catch (err) {
-      console.error("Encryption failed:", err.message);
-      alert(`Encryption failed: ${err.message}`);
-    } finally {
-      setIsSending(false);
+    // ── CASE 1: Uploading Media File + Custom/Default E2EE Caption ──────────
+    if (pendingFile) {
+      setIsUploading(true);
+      setUploadStatus(`Uploading ${pendingFile.name}...`);
+
+      try {
+        const token = localStorage.getItem("token");
+        if (!token) throw new Error("No authorization token found. Please log in again.");
+
+        // 1. Get secure signature for Cloudinary from backend
+        const presignedRes = await fetch(`${API_URL}/api/media/presigned-url`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            fileName: pendingFile.name,
+            fileType: pendingFile.type || "application/octet-stream",
+            fileSize: pendingFile.size
+          })
+        });
+
+        if (!presignedRes.ok) {
+          const errData = await presignedRes.json();
+          if (errData.setupRequired) {
+            throw new Error("Cloudinary is not fully configured on the server yet. Please follow backend env setup.");
+          }
+          throw new Error(errData.error || "Failed to generate secure upload credentials.");
+        }
+
+        const { signature, timestamp, apiKey, cloudName, folder } = await presignedRes.json();
+
+        // 2. Upload file directly to Cloudinary via FormData
+        const formData = new FormData();
+        formData.append("file", pendingFile);
+        formData.append("api_key", apiKey);
+        formData.append("timestamp", timestamp);
+        formData.append("signature", signature);
+        formData.append("folder", folder);
+
+        const uploadRes = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/auto/upload`, {
+          method: "POST",
+          body: formData
+        });
+
+        if (!uploadRes.ok) {
+          const uploadErrorData = await uploadRes.json();
+          throw new Error(uploadErrorData?.error?.message || "Direct upload to Cloudinary failed.");
+        }
+
+        const uploadData = await uploadRes.json();
+        const fileUrl = uploadData.secure_url;
+
+        setUploadStatus("Securing and sending media message...");
+
+        // 3. Encrypt file caption/metadata as E2EE message text
+        const captionText = messageInput.trim() ? messageInput.trim() : `Sent a file: ${pendingFile.name}`;
+        const payload = await encryptMessage(captionText, activeChat.publicKey, myPublicKey);
+
+        // 4. Emit socket event
+        socket?.emit("send_message", {
+          receiverId: activeChat._id,
+          ...payload,
+          isNudge: false,
+          replyTo: replyingToMessage ? replyingToMessage._id : null,
+          mediaUrl: fileUrl,
+          mediaType: pendingFile.type || "application/octet-stream",
+          mediaName: pendingFile.name,
+          mediaSize: pendingFile.size
+        });
+
+        // Reset upload and media states
+        setPendingFile(null);
+        setPendingFilePreview(null);
+        setMessageInput("");
+        setReplyingToMessage(null);
+        if (fileInputRef.current) fileInputRef.current.value = "";
+
+      } catch (err) {
+        console.error("Upload/Send error:", err);
+        alert(`Media Sharing Error: ${err.message}`);
+      } finally {
+        setIsUploading(false);
+        setUploadStatus("");
+      }
+
+    // ── CASE 2: Sending normal E2EE text message ────────────────────────────
+    } else {
+      setIsSending(true);
+      try {
+        const payload = await encryptMessage(messageInput, activeChat.publicKey, myPublicKey);
+        socket?.emit("send_message", {
+          receiverId: activeChat._id,
+          ...payload,
+          isNudge: false,
+          replyTo: replyingToMessage ? replyingToMessage._id : null,
+        });
+        setMessageInput("");
+        setReplyingToMessage(null);
+      } catch (err) {
+        console.error("Encryption failed:", err.message);
+        alert(`Encryption failed: ${err.message}`);
+      } finally {
+        setIsSending(false);
+      }
     }
   };
 
@@ -1422,6 +1578,26 @@ export default function ChatPage() {
                   
                   return (
                     <React.Fragment key={msg._id || idx}>
+                      {(() => {
+                        const showDateDivider = idx === 0 || (() => {
+                          const prevMsg = messages[idx - 1];
+                          if (!prevMsg) return true;
+                          const prevDate = new Date(prevMsg.createdAt).toDateString();
+                          const currDate = new Date(msg.createdAt).toDateString();
+                          return prevDate !== currDate;
+                        })();
+
+                        return showDateDivider && (
+                          <div className="col-span-full flex items-center justify-center my-4 select-none animate-fade-in w-full">
+                            <div className="grow border-t border-border opacity-35"></div>
+                            <span className="mx-4 text-[10px] font-bold text-muted-foreground tracking-wider uppercase bg-muted/65 px-3 py-1.5 rounded-full shadow-xs border border-border/40">
+                              {formatDividerDate(msg.createdAt)}
+                            </span>
+                            <div className="grow border-t border-border opacity-35"></div>
+                          </div>
+                        );
+                      })()}
+
                       {isFirstUnread && (
                         <div className="col-span-full flex items-center justify-center my-6">
                           <div className="grow border-t border-rose-500/30"></div>
@@ -1573,7 +1749,68 @@ export default function ChatPage() {
                               );
                             })()}
 
-                            <p className="text-sm wrap-break-word leading-relaxed">{msg.text}</p>
+                            {/* Media Attachment Viewer */}
+                            {msg.mediaUrl && (
+                              <div className="media-attachment-container select-none">
+                                {msg.mediaType?.startsWith("image/") ? (
+                                  <div 
+                                    className="mb-2 max-w-xs overflow-hidden rounded-xl border border-white/10 shadow-md cursor-pointer hover:scale-[1.01] hover:opacity-95 transition-all duration-200" 
+                                    onClick={() => setActiveLightboxImage(msg.mediaUrl)}
+                                    title="Open full size image"
+                                  >
+                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                    <img 
+                                      src={msg.mediaUrl} 
+                                      alt={msg.mediaName || "Shared image"} 
+                                      className="w-full h-auto object-cover max-h-64 rounded-xl" 
+                                    />
+                                  </div>
+                                ) : msg.mediaType?.startsWith("video/") ? (
+                                  <div className="mb-2 max-w-sm rounded-xl overflow-hidden shadow-md bg-black border border-white/10">
+                                    <video src={msg.mediaUrl} controls className="w-full max-h-64 rounded-xl" />
+                                  </div>
+                                ) : msg.mediaType?.startsWith("audio/") ? (
+                                  <div className={`mb-2 w-72 rounded-xl shadow-xs p-2 border ${isMine ? "bg-indigo-700/30 border-indigo-500/30" : "bg-muted border-border"}`}>
+                                    <audio src={msg.mediaUrl} controls className="w-full text-xs animate-fade-in" />
+                                  </div>
+                                ) : (
+                                  <div className={`mb-2 p-3 rounded-xl flex items-center gap-3 w-64 border shadow-xs ${
+                                    isMine 
+                                      ? "bg-indigo-700/40 border-indigo-500/30 text-white" 
+                                      : "bg-muted border-border text-foreground"
+                                  }`}>
+                                    <FileText className="w-8 h-8 shrink-0 text-indigo-400 animate-pulse" />
+                                    <div className="min-w-0 flex-1">
+                                      <p className="text-xs font-semibold truncate" title={msg.mediaName}>
+                                        {msg.mediaName || "Shared Document"}
+                                      </p>
+                                      <p className="text-[10px] opacity-70">
+                                        {msg.mediaSize ? (msg.mediaSize / (1024 * 1024)).toFixed(2) + " MB" : "Unknown size"}
+                                      </p>
+                                    </div>
+                                    <a 
+                                      href={msg.mediaUrl} 
+                                      target="_blank" 
+                                      rel="noopener noreferrer" 
+                                      className={`p-1.5 rounded-lg hover:bg-white/10 transition-colors shrink-0 ${isMine ? "text-white" : "text-indigo-500"}`}
+                                      title="Download File"
+                                    >
+                                      <Download className="w-4 h-4" />
+                                    </a>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+
+                            {/* Render Text Caption if it's not the default "Sent a file: filename" */}
+                            {(!msg.mediaUrl || msg.text !== `Sent a file: ${msg.mediaName}`) && (
+                              <p className="text-sm wrap-break-word leading-relaxed">{msg.text}</p>
+                            )}
+
+                            {/* Bubble Timestamp */}
+                            <span className={`text-[9px] select-none text-right block mt-1 leading-none ${isMine ? "text-indigo-200/80" : "text-muted-foreground/80"}`}>
+                              {formatBubbleTime(msg.createdAt)}
+                            </span>
                           </motion.div>
 
                           {/* Reactions Badges at Corner (Futuristic Half-in, Half-out) */}
@@ -1616,7 +1853,7 @@ export default function ChatPage() {
               <div ref={messagesEndRef} />
             </div>
 
-            {/* Replying Quote Composer Preview */}
+{/* Replying Quote Composer Preview */}
             {replyingToMessage && (
               <div className="bg-card border-t border-x border-border max-w-4xl mx-auto rounded-t-2xl px-5 py-3 flex items-center justify-between gap-4 animate-slide-up shadow-xs">
                 <div className="flex items-center gap-2.5 overflow-hidden">
@@ -1640,10 +1877,81 @@ export default function ChatPage() {
               </div>
             )}
 
+            {/* Uploading Status Overlay */}
+            {isUploading && (
+              <div className="bg-card border-t border-x border-border max-w-4xl mx-auto rounded-t-2xl px-5 py-3 flex items-center justify-between gap-4 animate-slide-up shadow-xs">
+                <div className="flex items-center gap-2.5 overflow-hidden">
+                  <Loader2 className="w-4 h-4 animate-spin text-indigo-500 shrink-0" />
+                  <div className="flex flex-col truncate">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-indigo-500">
+                      Cloud Sharing Progress
+                    </span>
+                    <span className="text-xs text-muted-foreground truncate font-medium">
+                      {uploadStatus}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Pending Attachment Card */}
+            {pendingFile && !isUploading && (
+              <div className="bg-card border-t border-x border-border max-w-4xl mx-auto rounded-t-2xl px-5 py-3.5 flex items-center justify-between gap-4 animate-slide-up shadow-xs">
+                <div className="flex items-center gap-3 overflow-hidden">
+                  {/* Thumbnail Preview */}
+                  {pendingFilePreview ? (
+                    <div className="w-10 h-10 rounded-lg overflow-hidden border border-border shrink-0 select-none">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img 
+                        src={pendingFilePreview} 
+                        alt="Local preview" 
+                        className="w-full h-full object-cover" 
+                      />
+                    </div>
+                  ) : pendingFile.type?.startsWith("audio/") ? (
+                    <div className="w-10 h-10 rounded-lg bg-indigo-500/10 flex items-center justify-center shrink-0 border border-indigo-500/10 text-indigo-500">
+                      <Music className="w-5 h-5 animate-pulse" />
+                    </div>
+                  ) : (
+                    <div className="w-10 h-10 rounded-lg bg-indigo-500/10 flex items-center justify-center shrink-0 border border-indigo-500/10 text-indigo-500">
+                      <FileText className="w-5 h-5" />
+                    </div>
+                  )}
+                  
+                  <div className="flex flex-col min-w-0">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-indigo-500 flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 inline-block animate-ping" />
+                      Pending Media Attachment
+                    </span>
+                    <span className="text-xs text-foreground truncate font-semibold">
+                      {pendingFile.name}
+                    </span>
+                    <span className="text-[9px] text-muted-foreground">
+                      {(pendingFile.size / (1024 * 1024)).toFixed(2)} MB
+                    </span>
+                  </div>
+                </div>
+                
+                {/* Dismiss Button */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPendingFile(null);
+                    setPendingFilePreview(null);
+                    if (fileInputRef.current) fileInputRef.current.value = "";
+                  }}
+                  className="p-1 hover:bg-rose-500/10 text-rose-500 hover:text-rose-600 rounded-full transition-colors shrink-0 cursor-pointer"
+                  title="Remove Attachment"
+                >
+                  <X className="w-4.5 h-4.5" />
+                </button>
+              </div>
+            )}
+
             {/* Input Bar */}
             <form
               onSubmit={sendMessage}
-              className={`p-4 bg-card/80 backdrop-blur-md border-t border-border ${replyingToMessage ? "rounded-b-2xl border-t-0" : ""}`}
+              className={`p-4 bg-card/80 backdrop-blur-md border-t border-border ${replyingToMessage || isUploading || pendingFile ? "rounded-b-2xl border-t-0" : ""}`}
             >
               <div className="flex items-center gap-2 max-w-4xl mx-auto">
                 {/* Nudge Button */}
@@ -1658,22 +1966,45 @@ export default function ChatPage() {
                   <Zap className="w-5 h-5" />
                 </motion.button>
 
+                {/* File Attachment Button */}
+                <motion.button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  whileHover={{ scale: 1.12 }}
+                  whileTap={{ scale: 0.88 }}
+                  disabled={isUploading || isSending}
+                  className="p-3 bg-indigo-500/10 text-indigo-500 hover:bg-indigo-600 hover:text-white rounded-full transition-all shrink-0 cursor-pointer disabled:opacity-50"
+                  title="Share Media (Limit 100MB)"
+                >
+                  {isUploading ? (
+                    <Loader2 className="w-5 h-5 animate-spin text-indigo-500" />
+                  ) : (
+                    <Paperclip className="w-5 h-5" />
+                  )}
+                </motion.button>
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleFileChange}
+                  className="hidden"
+                />
+
                 <div className="flex-1 relative">
                   <input
                     ref={messageInputRef}
                     type="text"
-                    placeholder="Type a secure message…"
+                    placeholder={pendingFile ? `Add secure caption for ${pendingFile.name}…` : "Type a secure message…"}
                     value={messageInput}
                     onChange={(e) => setMessageInput(e.target.value)}
-                    disabled={isSending}
+                    disabled={isSending || isUploading}
                     className="w-full pl-4 pr-12 py-3 rounded-full bg-muted text-foreground focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm disabled:opacity-50 transition-all"
                   />
                   <button
                     type="submit"
-                    disabled={isSending || !messageInput.trim()}
+                    disabled={isSending || isUploading || (!pendingFile && !messageInput.trim())}
                     className="absolute right-1.5 top-1.5 p-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 text-white rounded-full transition-colors"
                   >
-                    {isSending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4 ml-0.5" />}
+                    {isSending || isUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4 ml-0.5" />}
                   </button>
                 </div>
               </div>
@@ -2137,6 +2468,45 @@ export default function ChatPage() {
               </div>
             </motion.div>
           </div>
+        )}
+      </AnimatePresence>
+
+      {/* Image Lightbox Overlay with Blurred Background */}
+      <AnimatePresence>
+        {activeLightboxImage && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setActiveLightboxImage(null)}
+            className="fixed inset-0 bg-slate-950/80 backdrop-blur-md flex items-center justify-center z-50 cursor-zoom-out p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              transition={{ type: "spring", duration: 0.3 }}
+              className="relative max-w-5xl max-h-[90vh] flex items-center justify-center select-none"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Close Button */}
+              <button
+                onClick={() => setActiveLightboxImage(null)}
+                className="absolute top-4 right-4 p-2 bg-black/60 hover:bg-black/80 text-white rounded-full transition-colors cursor-pointer z-50 border border-white/10"
+                title="Close Preview"
+              >
+                <X className="w-5 h-5" />
+              </button>
+
+              {/* Lightboxed Image */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={activeLightboxImage}
+                alt="Enlarged E2EE shared media preview"
+                className="max-w-full max-h-[85vh] object-contain rounded-2xl shadow-2xl border border-white/5"
+              />
+            </motion.div>
+          </motion.div>
         )}
       </AnimatePresence>
     </div>
