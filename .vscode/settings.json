@@ -1,0 +1,24 @@
+{
+    "editor.indentSize": "tabSize",
+    "editor.tabSize": 4,
+    "files.autoSave": "afterDelay",
+    "files.autoSaveDelay": 1000,
+    "git.postCommitCommand": "push",
+    "editor.insertSpaces": false,
+    "editor.detectIndentation": false,
+    "[javascript]": {
+        "editor.insertSpaces": false
+    },
+    "[typescript]": {
+        "editor.insertSpaces": false
+    },
+    "[json]": {
+        "editor.insertSpaces": false
+    },
+    "[html]": {
+        "editor.insertSpaces": false
+    },
+    "[css]": {
+        "editor.insertSpaces": false
+    }
+}
