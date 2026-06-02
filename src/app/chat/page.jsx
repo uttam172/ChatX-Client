@@ -6,7 +6,7 @@ import {
   Search, Settings, MessageSquare, Phone, Video,
   MoreVertical, Send, Lock, Unlock, Zap, X, Loader2, LogOut, Copy, Check,
   Trash, ShieldCheck, Smile, CornerUpLeft, Paperclip, FileText, Music, Download,
-  ChevronLeft, ChevronRight, AlignStartVertical, AlignEndVertical
+  ChevronLeft, AlignStartVertical, AlignEndVertical
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { initiateSocketConnection, getSocket, disconnectSocket } from "@/utils/socket";
