@@ -76,6 +76,27 @@ const getEmojiOnlyCount = (str) => {
     return matches.length;
 };
 
+const formatLastSeenText = (lastSeen) => {
+    if (!lastSeen) return "Offline";
+    const date = new Date(lastSeen);
+    const now = new Date();
+    const diffMs = now - date;
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    
+    if (diffMins < 1) {
+        return "Active just now";
+    } else if (diffMins < 60) {
+        return `Active ${diffMins}m ago`;
+    } else if (diffHours < 24) {
+        return `Active ${diffHours}h ago`;
+    } else {
+        const days = Math.floor(diffHours / 24);
+        if (days === 1) return "Active yesterday";
+        return `Active ${days}d ago`;
+    }
+};
+
 export default function ChatPage() {
     const router = useRouter();
 
@@ -141,6 +162,12 @@ export default function ChatPage() {
     const [activeMessageReactionId, setActiveMessageReactionId] = useState(null);
     const [expandedMessageReactionId, setExpandedMessageReactionId] = useState(null);
     const [activeReactionTab, setActiveReactionTab] = useState("smileys");
+
+    // Online Status & Typing states
+    const [onlineStatuses, setOnlineStatuses] = useState({});
+    const [typingUsers, setTypingUsers] = useState({});
+    const isTypingRef = useRef(false);
+    const typingTimeoutRef = useRef(null);
 
     const hoverTimeoutRef = useRef(null);
 
@@ -748,6 +775,24 @@ export default function ChatPage() {
             }));
         });
 
+        socket?.on("online_users_list", (data) => {
+            setOnlineStatuses(data || {});
+        });
+
+        socket?.on("user_status", ({ userId, isOnline, lastSeen }) => {
+            setOnlineStatuses(prev => ({
+                ...prev,
+                [userId]: { isOnline, lastSeen }
+            }));
+        });
+
+        socket?.on("typing_status", ({ senderId, isTyping }) => {
+            setTypingUsers(prev => ({
+                ...prev,
+                [senderId]: isTyping
+            }));
+        });
+
         return () => { disconnectSocket(); };
     }, [router, fetchUsers, checkPrivateKey]);
 
@@ -799,9 +844,17 @@ export default function ChatPage() {
         };
     }, [searchQuery]);
 
-    // ── Select a chat contact ───────────────────────────────
-    const selectChat = useCallback((user) => {
-        setSearchQuery("");
+     // ── Select a chat contact ───────────────────────────────
+     const selectChat = useCallback((user) => {
+         // Clear old typing timeout and status if activeChat changes
+         if (activeChat) {
+             const socket = getSocket();
+             isTypingRef.current = false;
+             if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+             socket?.emit("typing", { receiverId: activeChat._id, isTyping: false });
+         }
+
+         setSearchQuery("");
         setReplyingToMessage(null);
         setExpandedMessageReactionId(null);
         setActiveReactionTab("smileys");
@@ -830,7 +883,7 @@ export default function ChatPage() {
         // Re-fetch users list and settings in the background
         fetchUsers();
         fetchChatSettings();
-    }, [currentUser, fetchHistory, fetchUsers, fetchChatSettings]);
+    }, [currentUser, fetchHistory, fetchUsers, fetchChatSettings, activeChat]);
 
     // ── Hidden Vault toggle ─────────────────────────────────
     const handleVaultToggle = async () => {
@@ -974,6 +1027,11 @@ export default function ChatPage() {
         }
 
         const socket = getSocket();
+
+        // Clear typing status immediately on send
+        isTypingRef.current = false;
+        if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+        socket?.emit("typing", { receiverId: activeChat._id, isTyping: false });
 
         // ── CASE 0: Editing an existing E2EE message ────────────────────────────
         if (editingMessage) {
@@ -1718,11 +1776,34 @@ export default function ChatPage() {
                                     {activeChat.hikeId.charAt(0).toUpperCase()}
                                 </div>
                                 <div>
-                                    <h2 className="font-semibold text-foreground">{activeChat.hikeId}</h2>
-                                    <p className="text-xs text-emerald-500 flex items-center gap-1">
-                                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block animate-pulse" />
-                                        End-to-End Encrypted
-                                    </p>
+                                    <h2 className="font-semibold text-foreground leading-tight">{activeChat.hikeId}</h2>
+                                    {(() => {
+                                        const isTyping = typingUsers[activeChat._id];
+                                        const userStatus = onlineStatuses[activeChat._id];
+                                        const isOnline = userStatus?.isOnline;
+                                        const lastSeen = userStatus?.lastSeen;
+
+                                        if (isTyping) {
+                                            return (
+                                                <p className="text-xs text-indigo-500 dark:text-indigo-400 font-semibold animate-pulse italic leading-none mt-1">
+                                                    typing...
+                                                </p>
+                                            );
+                                        } else if (isOnline) {
+                                            return (
+                                                <p className="text-xs text-emerald-500 flex items-center gap-1 font-medium leading-none mt-1">
+                                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block animate-pulse shrink-0 animate-ping" />
+                                                    Active now
+                                                </p>
+                                            );
+                                        } else {
+                                            return (
+                                                <p className="text-xs text-muted-foreground font-normal leading-none mt-1">
+                                                    {formatLastSeenText(lastSeen)}
+                                                </p>
+                                            );
+                                        }
+                                    })()}
                                 </div>
                             </div>
                             <div className="flex items-center gap-3 text-muted-foreground relative">
@@ -2326,7 +2407,21 @@ export default function ChatPage() {
                                         type="text"
                                         placeholder={pendingFile ? `Add secure caption for ${pendingFile.name}…` : "Type a secure message…"}
                                         value={messageInput}
-                                        onChange={(e) => setMessageInput(e.target.value)}
+                                        onChange={(e) => {
+                                            setMessageInput(e.target.value);
+                                            if (activeChat) {
+                                                const socket = getSocket();
+                                                if (!isTypingRef.current) {
+                                                    isTypingRef.current = true;
+                                                    socket?.emit("typing", { receiverId: activeChat._id, isTyping: true });
+                                                }
+                                                if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+                                                typingTimeoutRef.current = setTimeout(() => {
+                                                    isTypingRef.current = false;
+                                                    socket?.emit("typing", { receiverId: activeChat._id, isTyping: false });
+                                                }, 2000);
+                                            }
+                                        }}
                                         onPaste={handlePaste}
                                         disabled={isSending || isUploading}
                                         className="w-full pl-4 pr-12 py-3 rounded-full bg-muted text-foreground focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm disabled:opacity-50 transition-all"
