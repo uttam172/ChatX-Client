@@ -107,6 +107,8 @@ export default function ChatPage() {
         }
         return null;
     });
+    const currentUserRef = useRef(null);
+    currentUserRef.current = currentUser;
     const [activeChat, setActiveChat] = useState(null);
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     const [recentChats, setRecentChats] = useState([]);
@@ -793,11 +795,17 @@ export default function ChatPage() {
 
                 if (isActive) {
                     setMessages(prev => [...prev, { ...msg, text: "⚡ Sent a Nudge!" }]);
+                    // Emit mark_read to peer for E2EE seen receipt
+                    const socketObj = getSocket();
+                    socketObj?.emit("mark_read", { senderId: msg.senderId });
                 }
             } else {
                 if (isActive) {
                     const newMsg = { ...msg, text: decryptedText, read: true };
                     setMessages(prev => [...prev, newMsg]);
+                    // Emit mark_read to peer in real-time
+                    const socketObj = getSocket();
+                    socketObj?.emit("mark_read", { senderId: msg.senderId });
                 }
             }
 
@@ -984,6 +992,35 @@ export default function ChatPage() {
             }));
         });
 
+        socket?.on("messages_delivered", ({ receiverId, messageIds }) => {
+            const messageIdSet = new Set(messageIds.map(id => id.toString()));
+            // If currently talking to receiverId, mark messages in the log as delivered
+            if (activeChatRef.current && isSameId(receiverId, activeChatRef.current)) {
+                setMessages(prev => prev.map(m => messageIdSet.has(m._id?.toString()) ? { ...m, delivered: true } : m));
+            }
+            // Also update sidebar latestMessage delivered state
+            setRecentChats(prev => prev.map(c => {
+                if (isSameId(c._id, receiverId) && c.latestMessage && messageIdSet.has(c.latestMessage._id?.toString())) {
+                    return { ...c, latestMessage: { ...c.latestMessage, delivered: true } };
+                }
+                return c;
+            }));
+        });
+
+        socket?.on("messages_seen", ({ readerId }) => {
+            // If currently talking to readerId, mark all own messages as read/seen
+            if (activeChatRef.current && isSameId(readerId, activeChatRef.current)) {
+                setMessages(prev => prev.map(m => isSameId(m.senderId, currentUserRef.current) ? { ...m, read: true, delivered: true } : m));
+            }
+            // Also update sidebar latestMessage read state
+            setRecentChats(prev => prev.map(c => {
+                if (isSameId(c._id, readerId) && c.latestMessage && isSameId(c.latestMessage.senderId, currentUserRef.current)) {
+                    return { ...c, latestMessage: { ...c.latestMessage, read: true, delivered: true } };
+                }
+                return c;
+            }));
+        });
+
         return () => { disconnectSocket(); };
     }, [router, fetchUsers, checkPrivateKey, addInAppToast, showDesktopNotification]);
 
@@ -1052,6 +1089,11 @@ export default function ChatPage() {
 
         // Set active chat and load history immediately to prevent race conditions
         setActiveChat(user);
+
+        // Emit mark_read to peer in real-time
+        const socket = getSocket();
+        socket?.emit("mark_read", { senderId: user._id });
+
         resetInputHeight();
         if (currentUser) {
             fetchHistory(user, currentUser);
@@ -1690,6 +1732,15 @@ export default function ChatPage() {
             (user.email && user.email.toLowerCase().includes(query))
         );
     }, [sortedUnifiedUsers, debouncedSearchQuery]);
+
+    const lastSeenMyMessageIndex = (() => {
+        for (let i = messages.length - 1; i >= 0; i--) {
+            if (isSameId(messages[i].senderId, currentUser) && !messages[i].isNudge && messages[i].read) {
+                return i;
+            }
+        }
+        return -1;
+    })();
 
     if (!mounted) {
         return (
@@ -2469,17 +2520,25 @@ export default function ChatPage() {
                                                                     </p>
                                                                 )}
 
-                                                                {/* Bubble Timestamp */}
-                                                                <span className={`text-[9px] select-none block mt-1 leading-none ${
+                                                                {/* Bubble Timestamp & Status */}
+                                                                <div className={`flex items-center gap-1.5 mt-1 leading-none ${
                                                                     isOnlyEmoji 
-                                                                        ? "text-muted-foreground/60 text-right" 
+                                                                        ? "justify-end" 
                                                                         : isMine 
-                                                                            ? "text-indigo-200/80 text-right" 
-                                                                            : "text-muted-foreground/80 text-left"
+                                                                            ? "justify-end" 
+                                                                            : "justify-start"
                                                                 }`}>
-                                                                    {msg.isEdited && <span className="opacity-75 mr-1 font-normal italic">(edited)</span>}
-                                                                    {formatBubbleTime(msg.createdAt)}
-                                                                </span>
+                                                                    <span className={`text-[9px] select-none block ${
+                                                                        isOnlyEmoji 
+                                                                            ? "text-muted-foreground/60 text-right" 
+                                                                            : isMine 
+                                                                                ? "text-indigo-200/80 text-right" 
+                                                                                : "text-muted-foreground/80 text-left"
+                                                                    }`}>
+                                                                        {msg.isEdited && <span className="opacity-75 mr-1 font-normal italic">(edited)</span>}
+                                                                        {formatBubbleTime(msg.createdAt)}
+                                                                    </span>
+                                                                </div>
                                                             </motion.div>
                                                         );
                                                     })()}
@@ -2515,6 +2574,15 @@ export default function ChatPage() {
                                                         </motion.div>
                                                     )}
                                                 </div>
+                                            )}
+                                            {idx === lastSeenMyMessageIndex && (
+                                                <motion.div
+                                                    initial={{ opacity: 0, y: -2 }}
+                                                    animate={{ opacity: 1, y: 0 }}
+                                                    className="text-[10px] text-indigo-500 font-bold dark:text-indigo-400 select-none self-end pr-2.5 -mt-2 mb-1"
+                                                >
+                                                    Seen
+                                                </motion.div>
                                             )}
                                         </React.Fragment>
                                     );
