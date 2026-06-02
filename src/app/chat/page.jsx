@@ -1729,7 +1729,7 @@ export default function ChatPage() {
                                 <p className="text-xs font-bold text-indigo-500 dark:text-indigo-400 truncate leading-tight">
                                     {toast.contactUser.hikeId}
                                 </p>
-                                <p className="text-xs text-foreground/80 truncate mt-0.5 max-w-[200px] leading-snug">
+                                <p className="text-xs text-foreground/80 truncate mt-0.5 max-w-50 leading-snug">
                                     {toast.text}
                                 </p>
                             </div>
@@ -2077,7 +2077,7 @@ export default function ChatPage() {
                                         } else if (isOnline) {
                                             return (
                                                 <p className="text-xs text-emerald-500 flex items-center gap-1 font-medium leading-none mt-1">
-                                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block animate-pulse shrink-0 animate-ping" />
+                                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block animate-pulse shrink-0" />
                                                     Active now
                                                 </p>
                                             );
