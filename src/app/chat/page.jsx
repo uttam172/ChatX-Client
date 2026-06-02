@@ -861,6 +861,7 @@ export default function ChatPage() {
 
         // Set active chat and load history immediately to prevent race conditions
         setActiveChat(user);
+        resetInputHeight();
         if (currentUser) {
             fetchHistory(user, currentUser);
         }
@@ -1007,6 +1008,12 @@ export default function ChatPage() {
         }
     }, [activeChat, isSending, isUploading, handleSelectedFile]);
 
+    function resetInputHeight() {
+        if (messageInputRef.current) {
+            messageInputRef.current.style.height = "auto";
+        }
+    }
+
     // ── Send a message or shared media (E2EE encrypted) ───────────────────────
     const sendMessage = async (e) => {
         e?.preventDefault();
@@ -1044,6 +1051,7 @@ export default function ChatPage() {
                 });
                 setMessageInput("");
                 setEditingMessage(null);
+                resetInputHeight();
             } catch (err) {
                 console.error("Encryption failed for edit:", err.message);
                 alert(`Encryption failed: ${err.message}`);
@@ -1130,6 +1138,7 @@ export default function ChatPage() {
                 setPendingFilePreview(null);
                 setMessageInput("");
                 setReplyingToMessage(null);
+                resetInputHeight();
                 if (fileInputRef.current) fileInputRef.current.value = "";
 
             } catch (err) {
@@ -1153,6 +1162,7 @@ export default function ChatPage() {
                 });
                 setMessageInput("");
                 setReplyingToMessage(null);
+                resetInputHeight();
             } catch (err) {
                 console.error("Encryption failed:", err.message);
                 alert(`Encryption failed: ${err.message}`);
@@ -2174,11 +2184,11 @@ export default function ChatPage() {
                                                                 {/* Render Text Caption if it's not the default "Sent a file: filename" */}
                                                                 {(!msg.mediaUrl || msg.text !== `Sent a file: ${msg.mediaName}`) && (
                                                                     <p className={isOnlyEmoji
-                                                                        ? `wrap-break-word leading-normal select-text ${
+                                                                        ? `wrap-break-word leading-normal select-text whitespace-pre-wrap ${
                                                                             emojiCount <= 5 ? "text-3xl md:text-4xl py-1.5" :
                                                                             "text-2xl md:text-3xl py-1"
                                                                         }`
-                                                                        : "text-sm wrap-break-word leading-relaxed"
+                                                                        : "text-sm wrap-break-word leading-relaxed whitespace-pre-wrap"
                                                                     }>
                                                                         {msg.text}
                                                                     </p>
@@ -2281,6 +2291,7 @@ export default function ChatPage() {
                                     onClick={() => {
                                         setEditingMessage(null);
                                         setMessageInput("");
+                                        resetInputHeight();
                                     }}
                                     className="p-1 hover:bg-muted text-muted-foreground hover:text-foreground rounded-full transition-colors shrink-0 cursor-pointer"
                                 >
@@ -2350,6 +2361,7 @@ export default function ChatPage() {
                                     onClick={() => {
                                         setPendingFile(null);
                                         setPendingFilePreview(null);
+                                        resetInputHeight();
                                         if (fileInputRef.current) fileInputRef.current.value = "";
                                     }}
                                     className="p-1 hover:bg-rose-500/10 text-rose-500 hover:text-rose-600 rounded-full transition-colors shrink-0 cursor-pointer"
@@ -2402,13 +2414,39 @@ export default function ChatPage() {
                                 />
 
                                 <div className="flex-1 relative">
-                                    <input
+                                    <textarea
                                         ref={messageInputRef}
-                                        type="text"
+                                        rows={1}
                                         placeholder={pendingFile ? `Add secure caption for ${pendingFile.name}…` : "Type a secure message…"}
                                         value={messageInput}
+                                        onKeyDown={(e) => {
+                                            if (e.key === "Enter" && !e.shiftKey) {
+                                                e.preventDefault();
+                                                sendMessage(e);
+                                            } else if (e.key === "Tab") {
+                                                e.preventDefault();
+                                                const textarea = e.target;
+                                                const start = textarea.selectionStart;
+                                                const end = textarea.selectionEnd;
+                                                const val = textarea.value;
+                                                const indent = "    "; // 4 spaces for elegant indentation
+                                                const newValue = val.substring(0, start) + indent + val.substring(end);
+                                                setMessageInput(newValue);
+                                                
+                                                // Adjust cursor position and trigger dynamic auto-grow height
+                                                setTimeout(() => {
+                                                    textarea.selectionStart = textarea.selectionEnd = start + indent.length;
+                                                    textarea.style.height = "auto";
+                                                    textarea.style.height = `${Math.min(textarea.scrollHeight, 120)}px`;
+                                                }, 0);
+                                            }
+                                        }}
                                         onChange={(e) => {
                                             setMessageInput(e.target.value);
+                                            // Auto-grow height logic
+                                            e.target.style.height = "auto";
+                                            e.target.style.height = `${Math.min(e.target.scrollHeight, 120)}px`;
+
                                             if (activeChat) {
                                                 const socket = getSocket();
                                                 if (!isTypingRef.current) {
@@ -2424,12 +2462,12 @@ export default function ChatPage() {
                                         }}
                                         onPaste={handlePaste}
                                         disabled={isSending || isUploading}
-                                        className="w-full pl-4 pr-12 py-3 rounded-full bg-muted text-foreground focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm disabled:opacity-50 transition-all"
+                                        className="w-full pl-4 pr-12 py-3 rounded-2xl bg-muted text-foreground focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm disabled:opacity-50 transition-all resize-none overflow-y-auto max-h-32"
                                     />
                                     <button
                                         type="submit"
                                         disabled={isSending || isUploading || (!pendingFile && !messageInput.trim())}
-                                        className="absolute right-1.5 top-1.5 p-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 text-white rounded-full transition-colors"
+                                        className="absolute right-2 bottom-2 p-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 text-white rounded-full transition-colors"
                                     >
                                         {isSending || isUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4 ml-0.5" />}
                                     </button>
