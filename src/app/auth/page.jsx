@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { MessageCircle, ShieldCheck, Mail, Lock, User, ArrowRight, Loader2 } from "lucide-react";
+import { ShieldCheck, Mail, Lock, User, ArrowRight, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { authIllustration } from "@/assets/illustrations";
@@ -162,7 +162,7 @@ export default function AuthPage() {
 
       {/* Sleek structural grid pattern overlay for extra visual depth */}
       <div
-        className="absolute inset-0 bg-[linear-gradient(to_right,#0c0f1d_1px,transparent_1px),linear-gradient(to_bottom,#0c0f1d_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_50%,#000_70%,transparent_100%)] opacity-40 pointer-events-none"
+        className="absolute inset-0 bg-[linear-gradient(to_right,#0c0f1d_1px,transparent_1px),linear-gradient(to_bottom,#0c0f1d_1px,transparent_1px)] bg-size-[4rem_4rem] mask-[radial-gradient(ellipse_60%_50%_at_50%_50%,#000_70%,transparent_100%)] opacity-40 pointer-events-none"
       />
 
       {/* Smooth GPU-Accelerated Floating Blobs traveling randomly across the viewport */}
@@ -212,7 +212,7 @@ export default function AuthPage() {
         initial={{ opacity: 0, scale: 0.96, y: 15 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-        className="w-full max-w-5xl bg-slate-950/40 border border-slate-800/60 backdrop-blur-3xl rounded-3xl z-10 mx-4 shadow-[0_0_80px_-15px_rgba(99,102,241,0.2)] grid grid-cols-1 md:grid-cols-12 overflow-hidden relative min-h-[600px]"
+        className="w-full max-w-5xl bg-slate-950/40 border border-slate-800/60 backdrop-blur-3xl rounded-3xl z-10 mx-4 shadow-[0_0_80px_-15px_rgba(99,102,241,0.2)] grid grid-cols-1 md:grid-cols-12 overflow-hidden relative min-h-150"
       >
         {/* Subtle internal glowing border shine effect */}
         <div className="absolute inset-0 border border-white/5 rounded-3xl pointer-events-none" />
@@ -224,7 +224,7 @@ export default function AuthPage() {
           <motion.div
             animate={{ opacity: [0.1, 0.25, 0.1] }}
             transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
-            className="absolute inset-0 bg-gradient-to-tr from-indigo-500/5 via-transparent to-purple-500/5 pointer-events-none"
+            className="absolute inset-0 bg-linear-to-tr from-indigo-500/5 via-transparent to-purple-500/5 pointer-events-none"
           />
 
           <motion.div
