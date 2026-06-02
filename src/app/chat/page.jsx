@@ -136,6 +136,7 @@ export default function ChatPage() {
     // Reply and Reaction states
     const [replyingToMessage, setReplyingToMessage] = useState(null);
     const [editingMessage, setEditingMessage] = useState(null);
+    const [isDraggingFile, setIsDraggingFile] = useState(false);
     const [hoveredMessageId, setHoveredMessageId] = useState(null);
     const [activeMessageReactionId, setActiveMessageReactionId] = useState(null);
     const [expandedMessageReactionId, setExpandedMessageReactionId] = useState(null);
@@ -868,8 +869,7 @@ export default function ChatPage() {
     };
 
     // ── Handle Media selection and local E2E preview ──────────────────────────
-    const handleFileChange = (e) => {
-        const file = e.target.files?.[0];
+    const handleSelectedFile = useCallback((file) => {
         if (!file) return;
 
         // Limit size to 100MB
@@ -895,7 +895,64 @@ export default function ChatPage() {
         } else {
             setPendingFilePreview(null);
         }
+    }, [activeChat]);
+
+    const handleFileChange = (e) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            handleSelectedFile(file);
+        }
     };
+
+    const handleDragOver = useCallback((e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (activeChat) {
+            setIsDraggingFile(true);
+        }
+    }, [activeChat]);
+
+    const handleDragLeave = useCallback((e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDraggingFile(false);
+    }, []);
+
+    const handleDrop = useCallback((e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDraggingFile(false);
+
+        if (!activeChat) return;
+
+        const file = e.dataTransfer.files?.[0];
+        if (file) {
+            handleSelectedFile(file);
+        }
+    }, [activeChat, handleSelectedFile]);
+
+    const handlePaste = useCallback((e) => {
+        if (!activeChat || isSending || isUploading) return;
+
+        const items = e.clipboardData?.items;
+        if (!items) return;
+
+        for (const item of items) {
+            if (item.type.startsWith("image/")) {
+                const file = item.getAsFile();
+                if (file) {
+                    e.preventDefault();
+                    // Create a neat name for the pasted image
+                    const ext = file.type.split("/")[1] || "png";
+                    const timeString = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }).replace(/:/g, '-');
+                    const renamedFile = new File([file], `Pasted Image - ${timeString}.${ext}`, { type: file.type });
+
+                    handleSelectedFile(renamedFile);
+                    break;
+                }
+            }
+        }
+    }, [activeChat, isSending, isUploading, handleSelectedFile]);
 
     // ── Send a message or shared media (E2EE encrypted) ───────────────────────
     const sendMessage = async (e) => {
@@ -1621,10 +1678,28 @@ export default function ChatPage() {
             <motion.div
                 animate={nudgeShake ? { x: [-15, 15, -15, 15, -8, 8, -4, 4, 0] } : {}}
                 transition={{ duration: 0.5 }}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
                 className={`flex-1 flex flex-col relative transition-all duration-300 ${activeChat ? "flex w-full" : "hidden md:flex"
                     }`}
                 style={{ background: "linear-gradient(135deg, var(--color-background), var(--color-muted))" }}
             >
+                {/* Drag and Drop Blur Dropzone Overlay */}
+                {isDraggingFile && (
+                    <div className="absolute inset-0 z-50 bg-indigo-600/10 backdrop-blur-md border-4 border-dashed border-indigo-500 rounded-3xl m-4 flex flex-col items-center justify-center pointer-events-none animate-fade-in shadow-2xl">
+                        <div className="bg-card/95 border border-border p-8 rounded-2xl flex flex-col items-center gap-4 text-center max-w-xs shadow-xl scale-102 transform transition-transform duration-200">
+                            <div className="w-16 h-16 rounded-full bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-500 animate-bounce">
+                                <Paperclip className="w-8 h-8" />
+                            </div>
+                            <div>
+                                <h3 className="font-bold text-lg text-foreground">Drop media here</h3>
+                                <p className="text-xs text-muted-foreground mt-1 font-medium">E2EE Secured & Shared Instantly</p>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
                 {activeChat ? (
                     <>
                         {/* Chat Header */}
@@ -2252,6 +2327,7 @@ export default function ChatPage() {
                                         placeholder={pendingFile ? `Add secure caption for ${pendingFile.name}…` : "Type a secure message…"}
                                         value={messageInput}
                                         onChange={(e) => setMessageInput(e.target.value)}
+                                        onPaste={handlePaste}
                                         disabled={isSending || isUploading}
                                         className="w-full pl-4 pr-12 py-3 rounded-full bg-muted text-foreground focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm disabled:opacity-50 transition-all"
                                     />
