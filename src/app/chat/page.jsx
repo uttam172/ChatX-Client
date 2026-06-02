@@ -6,7 +6,7 @@ import {
     Search, Settings, MessageSquare, Phone, Video,
     MoreVertical, Send, Lock, Unlock, Zap, X, Loader2, LogOut, Copy, Check,
     Trash, ShieldCheck, Smile, CornerUpLeft, Paperclip, FileText, Music, Download,
-    ChevronLeft, AlignStartVertical, AlignEndVertical
+    ChevronLeft, AlignStartVertical, AlignEndVertical, Pencil
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { initiateSocketConnection, getSocket, disconnectSocket } from "@/utils/socket";
@@ -28,6 +28,52 @@ const getCleanId = (val) => {
 
 const isSameId = (id1, id2) => {
     return getCleanId(id1) === getCleanId(id2);
+};
+
+const getEmojiOnlyCount = (str) => {
+    if (!str) return 0;
+    const cleanStr = str.trim();
+    if (!cleanStr) return 0;
+
+    // Use Intl.Segmenter to accurately segment visual characters (handles skins, compound, ZWJs)
+    if (typeof Intl !== 'undefined' && Intl.Segmenter) {
+        try {
+            const segmenter = new Intl.Segmenter(undefined, { granularity: 'grapheme' });
+            const segments = [...segmenter.segment(cleanStr)];
+            
+            let count = 0;
+            for (const segment of segments) {
+                const char = segment.segment.trim();
+                if (!char) continue; // Allow/ignore whitespace between emojis
+                
+                // Match visual emoji character
+                const isEmoji = /\p{Extended_Pictographic}/u.test(char) || 
+                                /^\p{Emoji_Presentation}$/u.test(char) ||
+                                /^[\u2600-\u27BF]$/u.test(char);
+                                
+                if (!isEmoji) return 0; // Contains non-emoji character
+                count++;
+            }
+            return count;
+        } catch (e) {
+            console.warn("Intl.Segmenter error, falling back to regex: ", e);
+        }
+    }
+
+    // Fallback regex if Intl.Segmenter is not supported or errors
+    const emojiRegex = /(\p{Extended_Pictographic}|\p{Emoji_Presentation})/gu;
+    const matches = cleanStr.match(emojiRegex);
+    if (!matches) return 0;
+
+    // Remove all matched emojis, variation selectors, and spaces
+    const nonEmoji = cleanStr
+        .replace(emojiRegex, '')
+        .replace(/[\uFE0F\u200D\u200B\uFE0E]/g, '')
+        .replace(/\s/g, '');
+
+    if (nonEmoji.length > 0) return 0; // Contains non-emoji characters
+
+    return matches.length;
 };
 
 export default function ChatPage() {
@@ -89,6 +135,7 @@ export default function ChatPage() {
 
     // Reply and Reaction states
     const [replyingToMessage, setReplyingToMessage] = useState(null);
+    const [editingMessage, setEditingMessage] = useState(null);
     const [hoveredMessageId, setHoveredMessageId] = useState(null);
     const [activeMessageReactionId, setActiveMessageReactionId] = useState(null);
     const [expandedMessageReactionId, setExpandedMessageReactionId] = useState(null);
@@ -614,6 +661,92 @@ export default function ChatPage() {
             setMessages(prev => prev.map(m => m._id === messageId ? { ...m, reactions } : m));
         });
 
+        socket?.on("message_edited", async (msg) => {
+            const contactId = isSameId(msg.senderId, parsedUser) ? msg.receiverId : msg.senderId;
+            const isActive = isSameId(contactId, activeChatRef.current);
+
+            // Decrypt the edited message text
+            let decryptedText = "🔒 [Could not decrypt]";
+            try {
+                const privateKey = await getPrivateKey(parsedUser.hikeId);
+                if (privateKey) {
+                    const isMine = isSameId(msg.senderId, parsedUser);
+                    const primaryKey = isMine ? msg.encryptedAesKeySender : msg.encryptedAesKeyReceiver;
+                    const fallbackKey = isMine ? msg.encryptedAesKeyReceiver : msg.encryptedAesKeySender;
+
+                    try {
+                        decryptedText = await decryptMessage(
+                            primaryKey,
+                            msg.ciphertext,
+                            msg.iv,
+                            privateKey
+                        );
+                    } catch {
+                        try {
+                            decryptedText = await decryptMessage(
+                                fallbackKey,
+                                msg.ciphertext,
+                                msg.iv,
+                                privateKey
+                            );
+                        } catch (err) {
+                            console.error("Failed to decrypt edited message with fallback key:", err);
+                        }
+                    }
+                }
+            } catch (err) {
+                console.error("Failed to decrypt edited message:", err);
+            }
+
+            const updatedMsg = { ...msg, text: decryptedText };
+
+            // Update messages list if active chat
+            if (isActive) {
+                setMessages(prev => prev.map(m => m._id === msg._id ? updatedMsg : m));
+            }
+
+            // Play alert sound for any incoming edited peer message
+            const isPeerMessage = !isSameId(msg.senderId, parsedUser);
+            if (isPeerMessage) {
+                try {
+                    const audio = new Audio("/assets/bubble-pop-up-alert-notification.mp3");
+                    audio.play().catch(e => console.log("Audio playback was blocked or failed:", e));
+                } catch { }
+            }
+
+            // Update recent chats list: move to top, update preview, update unread count
+            let contactUser = allUsersRef.current.find(u => isSameId(u._id, contactId));
+            if (!contactUser) {
+                await fetchUsers();
+                contactUser = allUsersRef.current.find(u => isSameId(u._id, contactId));
+            }
+
+            if (contactUser) {
+                setRecentChats(prev => {
+                    const filtered = prev.filter(c => !isSameId(c._id, contactId));
+                    const existing = prev.find(c => isSameId(c._id, contactId));
+
+                    let currentUnread = existing?.unreadCount || 0;
+                    if (!isActive && isPeerMessage) {
+                        currentUnread += 1;
+                    }
+
+                    const updatedContact = {
+                        ...contactUser,
+                        latestMessage: msg,
+                        unreadCount: currentUnread
+                    };
+                    return [updatedContact, ...filtered];
+                });
+            }
+
+            // Update decryptedLastMessages for the sidebar preview
+            setDecryptedLastMessages(prev => ({
+                ...prev,
+                [contactId]: { text: decryptedText, msgId: msg._id }
+            }));
+        });
+
         return () => { disconnectSocket(); };
     }, [router, fetchUsers, checkPrivateKey]);
 
@@ -784,6 +917,26 @@ export default function ChatPage() {
         }
 
         const socket = getSocket();
+
+        // ── CASE 0: Editing an existing E2EE message ────────────────────────────
+        if (editingMessage) {
+            setIsSending(true);
+            try {
+                const payload = await encryptMessage(messageInput, activeChat.publicKey, myPublicKey);
+                socket?.emit("edit_message", {
+                    messageId: editingMessage._id,
+                    ...payload,
+                });
+                setMessageInput("");
+                setEditingMessage(null);
+            } catch (err) {
+                console.error("Encryption failed for edit:", err.message);
+                alert(`Encryption failed: ${err.message}`);
+            } finally {
+                setIsSending(false);
+            }
+            return;
+        }
 
         // ── CASE 1: Uploading Media File + Custom/Default E2EE Caption ──────────
         if (pendingFile) {
@@ -1642,11 +1795,11 @@ export default function ChatPage() {
 
                                             {isFirstUnread && (
                                                 <div className="col-span-full flex items-center justify-center my-6">
-                                                    <div className="grow border-t border-rose-500/30"></div>
-                                                    <span className="mx-4 text-xs font-semibold text-rose-500 tracking-wider uppercase bg-rose-500/10 px-3.5 py-1.5 rounded-full shadow-sm border border-rose-500/20">
+                                                    <div className="grow border border-amber-100/50"/>
+                                                    <span className="mx-4 text-xs font-semibold text-amber-100 tracking-wider uppercase bg-rose-500/10 px-3.5 py-1.5 rounded-full shadow-sm border border-rose-500/20">
                                                         New Messages
                                                     </span>
-                                                    <div className="grow border-t border-rose-500/30"></div>
+                                                    <div className="grow border-t border-amber-100/50"/>
                                                 </div>
                                             )}
 
@@ -1738,6 +1891,24 @@ export default function ChatPage() {
                                                                 <CornerUpLeft className="w-3.5 h-3.5" />
                                                             </button>
 
+                                                            {/* Edit icon (Only for own messages sent within 1 hour) */}
+                                                            {isMine && (new Date() - new Date(msg.createdAt)) < 60 * 60 * 1000 && (
+                                                                <button
+                                                                    onClick={() => {
+                                                                        setEditingMessage(msg);
+                                                                        setMessageInput(msg.text);
+                                                                        setReplyingToMessage(null); // Cancel reply if editing
+                                                                        setTimeout(() => {
+                                                                            messageInputRef.current?.focus();
+                                                                        }, 50);
+                                                                    }}
+                                                                    className="p-1 hover:bg-muted text-muted-foreground hover:text-foreground rounded-full transition-colors cursor-pointer animate-fade-in"
+                                                                    title="Edit"
+                                                                >
+                                                                    <Pencil className="w-3.5 h-3.5" />
+                                                                </button>
+                                                            )}
+
                                                             {/* Unsend / Trash icon */}
                                                             {isMine && (
                                                                 <button
@@ -1758,95 +1929,119 @@ export default function ChatPage() {
                                                     )}
 
                                                     {/* Message Bubble itself */}
-                                                    <motion.div
-                                                        initial={{ opacity: 0, y: 8, scale: 0.96 }}
-                                                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                                                        transition={{ type: "spring", bounce: 0.25, duration: 0.3 }}
-                                                        className={`px-4 py-2.5 rounded-2xl shadow-xs relative ${isMine
-                                                            ? "bg-indigo-600 text-white rounded-tr-sm"
-                                                            : "bg-card text-foreground rounded-tl-sm border border-border"
-                                                            }`}
-                                                    >
-                                                        {/* Reply Quote Block inside bubble */}
-                                                        {msg.replyTo && (() => {
-                                                            const parentMsg = messages.find(m => m._id === msg.replyTo);
-                                                            return (
-                                                                <div className={`text-xs p-2 mb-1.5 rounded-xl border-l-4 font-medium flex flex-col gap-0.5 max-w-full truncate ${isMine
-                                                                    ? "bg-indigo-700/40 border-indigo-400 text-indigo-100"
-                                                                    : "bg-muted/80 border-indigo-500 text-muted-foreground"
-                                                                    }`}>
-                                                                    <span className="text-[9px] font-bold uppercase tracking-wider opacity-85">
-                                                                        {parentMsg ? (isSameId(parentMsg.senderId, currentUser) ? "You" : activeChat.hikeId) : "Secure Reply"}
-                                                                    </span>
-                                                                    <span className="truncate italic text-[11px] opacity-90">
-                                                                        {parentMsg ? parentMsg.text : "🔒 Quoted message is unavailable"}
-                                                                    </span>
-                                                                </div>
-                                                            );
-                                                        })()}
-
-                                                        {/* Media Attachment Viewer */}
-                                                        {msg.mediaUrl && (
-                                                            <div className="media-attachment-container select-none">
-                                                                {msg.mediaType?.startsWith("image/") ? (
-                                                                    <div
-                                                                        className="mb-2 max-w-xs overflow-hidden rounded-xl border border-white/10 shadow-md cursor-pointer hover:scale-[1.01] hover:opacity-95 transition-all duration-200"
-                                                                        onClick={() => setActiveLightboxImage(msg.mediaUrl)}
-                                                                        title="Open full size image"
-                                                                    >
-                                                                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                                                                        <img
-                                                                            src={msg.mediaUrl}
-                                                                            alt={msg.mediaName || "Shared image"}
-                                                                            className="w-full h-auto object-cover max-h-64 rounded-xl"
-                                                                        />
-                                                                    </div>
-                                                                ) : msg.mediaType?.startsWith("video/") ? (
-                                                                    <div className="mb-2 max-w-sm rounded-xl overflow-hidden shadow-md bg-black border border-white/10">
-                                                                        <video src={msg.mediaUrl} controls className="w-full max-h-64 rounded-xl" />
-                                                                    </div>
-                                                                ) : msg.mediaType?.startsWith("audio/") ? (
-                                                                    <div className={`mb-2 w-72 rounded-xl shadow-xs p-2 border ${isMine ? "bg-indigo-700/30 border-indigo-500/30" : "bg-muted border-border"}`}>
-                                                                        <audio src={msg.mediaUrl} controls className="w-full text-xs animate-fade-in" />
-                                                                    </div>
-                                                                ) : (
-                                                                    <div className={`mb-2 p-3 rounded-xl flex items-center gap-3 w-64 border shadow-xs ${isMine
-                                                                        ? "bg-indigo-700/40 border-indigo-500/30 text-white"
-                                                                        : "bg-muted border-border text-foreground"
-                                                                        }`}>
-                                                                        <FileText className="w-8 h-8 shrink-0 text-indigo-400 animate-pulse" />
-                                                                        <div className="min-w-0 flex-1">
-                                                                            <p className="text-xs font-semibold truncate" title={msg.mediaName}>
-                                                                                {msg.mediaName || "Shared Document"}
-                                                                            </p>
-                                                                            <p className="text-[10px] opacity-70">
-                                                                                {msg.mediaSize ? (msg.mediaSize / (1024 * 1024)).toFixed(2) + " MB" : "Unknown size"}
-                                                                            </p>
+                                                    {(() => {
+                                                        const emojiCount = getEmojiOnlyCount(msg.text);
+                                                        const isOnlyEmoji = emojiCount > 0 && emojiCount <= 8 && !msg.mediaUrl && !msg.replyTo;
+                                                        
+                                                        return (
+                                                            <motion.div
+                                                                initial={{ opacity: 0, y: 8, scale: 0.96 }}
+                                                                animate={{ opacity: 1, y: 0, scale: 1 }}
+                                                                transition={{ type: "spring", bounce: 0.25, duration: 0.3 }}
+                                                                className={isOnlyEmoji
+                                                                    ? `relative p-0 select-none bg-transparent border-none shadow-none ${isMine ? "text-right" : "text-left"}`
+                                                                    : `px-4 py-2.5 rounded-2xl shadow-xs relative ${isMine
+                                                                        ? "bg-indigo-600 text-white rounded-tr-sm"
+                                                                        : "bg-card text-foreground rounded-tl-sm border border-border"
+                                                                    }`}
+                                                            >
+                                                                {/* Reply Quote Block inside bubble */}
+                                                                {msg.replyTo && (() => {
+                                                                    const parentMsg = messages.find(m => m._id === msg.replyTo);
+                                                                    return (
+                                                                        <div className={`text-xs p-2 mb-1.5 rounded-xl border-l-4 font-medium flex flex-col gap-0.5 max-w-full truncate ${isMine
+                                                                            ? "bg-indigo-700/40 border-indigo-400 text-indigo-100"
+                                                                            : "bg-muted/80 border-indigo-500 text-muted-foreground"
+                                                                            }`}>
+                                                                            <span className="text-[9px] font-bold uppercase tracking-wider opacity-85">
+                                                                                {parentMsg ? (isSameId(parentMsg.senderId, currentUser) ? "You" : activeChat.hikeId) : "Secure Reply"}
+                                                                            </span>
+                                                                            <span className="truncate italic text-[11px] opacity-90">
+                                                                                {parentMsg ? parentMsg.text : "🔒 Quoted message is unavailable"}
+                                                                            </span>
                                                                         </div>
-                                                                        <a
-                                                                            href={msg.mediaUrl}
-                                                                            target="_blank"
-                                                                            rel="noopener noreferrer"
-                                                                            className={`p-1.5 rounded-lg hover:bg-white/10 transition-colors shrink-0 ${isMine ? "text-white" : "text-indigo-500"}`}
-                                                                            title="Download File"
-                                                                        >
-                                                                            <Download className="w-4 h-4" />
-                                                                        </a>
+                                                                    );
+                                                                })()}
+
+                                                                {/* Media Attachment Viewer */}
+                                                                {msg.mediaUrl && (
+                                                                    <div className="media-attachment-container select-none">
+                                                                        {msg.mediaType?.startsWith("image/") ? (
+                                                                            <div
+                                                                                className="mb-2 max-w-xs overflow-hidden rounded-xl border border-white/10 shadow-md cursor-pointer hover:scale-[1.01] hover:opacity-95 transition-all duration-200"
+                                                                                onClick={() => setActiveLightboxImage(msg.mediaUrl)}
+                                                                                title="Open full size image"
+                                                                            >
+                                                                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                                                <img
+                                                                                    src={msg.mediaUrl}
+                                                                                    alt={msg.mediaName || "Shared image"}
+                                                                                    className="w-full h-auto object-cover max-h-64 rounded-xl"
+                                                                                />
+                                                                            </div>
+                                                                        ) : msg.mediaType?.startsWith("video/") ? (
+                                                                            <div className="mb-2 max-w-sm rounded-xl overflow-hidden shadow-md bg-black border border-white/10">
+                                                                                <video src={msg.mediaUrl} controls className="w-full max-h-64 rounded-xl" />
+                                                                            </div>
+                                                                        ) : msg.mediaType?.startsWith("audio/") ? (
+                                                                            <div className={`mb-2 w-72 rounded-xl shadow-xs p-2 border ${isMine ? "bg-indigo-700/30 border-indigo-500/30" : "bg-muted border-border"}`}>
+                                                                                <audio src={msg.mediaUrl} controls className="w-full text-xs animate-fade-in" />
+                                                                            </div>
+                                                                        ) : (
+                                                                            <div className={`mb-2 p-3 rounded-xl flex items-center gap-3 w-64 border shadow-xs ${isMine
+                                                                                ? "bg-indigo-700/40 border-indigo-500/30 text-white"
+                                                                                : "bg-muted border-border text-foreground"
+                                                                                }`}>
+                                                                                <FileText className="w-8 h-8 shrink-0 text-indigo-400 animate-pulse" />
+                                                                                <div className="min-w-0 flex-1">
+                                                                                    <p className="text-xs font-semibold truncate" title={msg.mediaName}>
+                                                                                        {msg.mediaName || "Shared Document"}
+                                                                                    </p>
+                                                                                    <p className="text-[10px] opacity-70">
+                                                                                        {msg.mediaSize ? (msg.mediaSize / (1024 * 1024)).toFixed(2) + " MB" : "Unknown size"}
+                                                                                    </p>
+                                                                                </div>
+                                                                                <a
+                                                                                    href={msg.mediaUrl}
+                                                                                    target="_blank"
+                                                                                    rel="noopener noreferrer"
+                                                                                    className={`p-1.5 rounded-lg hover:bg-white/10 transition-colors shrink-0 ${isMine ? "text-white" : "text-indigo-500"}`}
+                                                                                    title="Download File"
+                                                                                >
+                                                                                    <Download className="w-4 h-4" />
+                                                                                </a>
+                                                                            </div>
+                                                                        )}
                                                                     </div>
                                                                 )}
-                                                            </div>
-                                                        )}
 
-                                                        {/* Render Text Caption if it's not the default "Sent a file: filename" */}
-                                                        {(!msg.mediaUrl || msg.text !== `Sent a file: ${msg.mediaName}`) && (
-                                                            <p className="text-sm wrap-break-word leading-relaxed">{msg.text}</p>
-                                                        )}
+                                                                {/* Render Text Caption if it's not the default "Sent a file: filename" */}
+                                                                {(!msg.mediaUrl || msg.text !== `Sent a file: ${msg.mediaName}`) && (
+                                                                    <p className={isOnlyEmoji
+                                                                        ? `wrap-break-word leading-normal select-text ${
+                                                                            emojiCount <= 5 ? "text-3xl md:text-4xl py-1.5" :
+                                                                            "text-2xl md:text-3xl py-1"
+                                                                        }`
+                                                                        : "text-sm wrap-break-word leading-relaxed"
+                                                                    }>
+                                                                        {msg.text}
+                                                                    </p>
+                                                                )}
 
-                                                        {/* Bubble Timestamp */}
-                                                        <span className={`text-[9px] select-none text-right block mt-1 leading-none ${isMine ? "text-indigo-200/80" : "text-muted-foreground/80"}`}>
-                                                            {formatBubbleTime(msg.createdAt)}
-                                                        </span>
-                                                    </motion.div>
+                                                                {/* Bubble Timestamp */}
+                                                                <span className={`text-[9px] select-none block mt-1 leading-none ${
+                                                                    isOnlyEmoji 
+                                                                        ? "text-muted-foreground/60 text-right" 
+                                                                        : isMine 
+                                                                            ? "text-indigo-200/80 text-right" 
+                                                                            : "text-muted-foreground/80 text-left"
+                                                                }`}>
+                                                                    {msg.isEdited && <span className="opacity-75 mr-1 font-normal italic">(edited)</span>}
+                                                                    {formatBubbleTime(msg.createdAt)}
+                                                                </span>
+                                                            </motion.div>
+                                                        );
+                                                    })()}
 
                                                     {/* Reactions Badges at Corner (Futuristic Half-in, Half-out) */}
                                                     {msg.reactions && msg.reactions.length > 0 && (
@@ -1904,6 +2099,33 @@ export default function ChatPage() {
                                 <button
                                     type="button"
                                     onClick={() => setReplyingToMessage(null)}
+                                    className="p-1 hover:bg-muted text-muted-foreground hover:text-foreground rounded-full transition-colors shrink-0 cursor-pointer"
+                                >
+                                    <X className="w-4 h-4" />
+                                </button>
+                            </div>
+                        )}
+
+                        {/* Editing Message Composer Preview */}
+                        {editingMessage && (
+                            <div className="bg-card border-t border-x border-border max-w-4xl mx-auto rounded-t-2xl px-5 py-3 flex items-center justify-between gap-4 animate-slide-up shadow-xs">
+                                <div className="flex items-center gap-2.5 overflow-hidden">
+                                    <div className="w-1 border-l-4 border-amber-500 h-8 rounded-full shrink-0" />
+                                    <div className="flex flex-col truncate">
+                                        <span className="text-[10px] font-black uppercase tracking-wider text-amber-500">
+                                            Editing message
+                                        </span>
+                                        <span className="text-xs text-muted-foreground truncate italic">
+                                            {editingMessage.text}
+                                        </span>
+                                    </div>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setEditingMessage(null);
+                                        setMessageInput("");
+                                    }}
                                     className="p-1 hover:bg-muted text-muted-foreground hover:text-foreground rounded-full transition-colors shrink-0 cursor-pointer"
                                 >
                                     <X className="w-4 h-4" />
