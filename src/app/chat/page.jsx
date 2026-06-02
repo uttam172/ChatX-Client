@@ -12,7 +12,7 @@ import { useRouter } from "next/navigation";
 import { initiateSocketConnection, getSocket, disconnectSocket } from "@/utils/socket";
 import { encryptMessage, decryptMessage, getPrivateKey, generateE2EEKeys, storePrivateKey, encryptPrivateKeyWithPassword, verifyKeyPair } from "@/utils/crypto";
 import Image from "next/image";
-import { ChatXiconsvg } from "@/assets/icons";
+import { logo } from "@/assets/logo";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
@@ -315,17 +315,17 @@ export default function ChatPage() {
     if (!dateStr) return "";
     const date = new Date(dateStr);
     const now = new Date();
-    
+
     if (date.toDateString() === now.toDateString()) {
       return "Today";
     }
-    
+
     const yesterday = new Date(now);
     yesterday.setDate(now.getDate() - 1);
     if (date.toDateString() === yesterday.toDateString()) {
       return "Yesterday";
     }
-    
+
     return date.toLocaleDateString([], { weekday: "long", year: "numeric", month: "long", day: "numeric" });
   }, []);
 
@@ -405,7 +405,7 @@ export default function ChatPage() {
     }
 
     const parsedUser = JSON.parse(user);
-    
+
     // Fetch latest user profile from backend to ensure we have the correct, fresh publicKey
     fetch(`${API_URL}/api/users/me`, {
       headers: { Authorization: `Bearer ${token}` },
@@ -461,7 +461,7 @@ export default function ChatPage() {
         await fetchUsers();
         contactUser = allUsersRef.current.find(u => isSameId(u._id, contactId));
       }
-      
+
       const isActive = isSameId(contactId, activeChatRef.current);
       const isPeerMessage = !isSameId(msg.senderId, parsedUser);
 
@@ -469,12 +469,12 @@ export default function ChatPage() {
         setRecentChats(prev => {
           const filtered = prev.filter(c => !isSameId(c._id, contactId));
           const existing = prev.find(c => isSameId(c._id, contactId));
-          
+
           let currentUnread = existing?.unreadCount || 0;
           if (!isActive && isPeerMessage) {
             currentUnread += 1;
           }
-          
+
           const updatedContact = {
             ...contactUser,
             latestMessage: msg,
@@ -500,7 +500,7 @@ export default function ChatPage() {
         try {
           const audio = new Audio("/assets/bubble-pop-up-alert-notification.mp3");
           audio.play().catch(e => console.log("Audio playback was blocked or failed:", e));
-        } catch {}
+        } catch { }
       }
 
       if (msg.isNudge) {
@@ -508,7 +508,7 @@ export default function ChatPage() {
         try {
           const audio = new Audio("/assets/bell-notification.mp3");
           audio.play().catch(e => console.log("Audio playback was blocked or failed:", e));
-        } catch {}
+        } catch { }
         setTimeout(() => setNudgeShake(false), 800);
 
         if (isActive) {
@@ -537,7 +537,7 @@ export default function ChatPage() {
                 privateKey
               );
             }
-            
+
             // Add the new message as normal
             const newMsg = { ...msg, text: decryptedText, read: true };
             setMessages(prev => [...prev, newMsg]);
@@ -671,7 +671,7 @@ export default function ChatPage() {
     setReplyingToMessage(null);
     setExpandedMessageReactionId(null);
     setActiveReactionTab("smileys");
-    
+
     // Set active chat and load history immediately to prevent race conditions
     setActiveChat(user);
     if (currentUser) {
@@ -872,7 +872,7 @@ export default function ChatPage() {
         setUploadStatus("");
       }
 
-    // ── CASE 2: Sending normal E2EE text message ────────────────────────────
+      // ── CASE 2: Sending normal E2EE text message ────────────────────────────
     } else {
       setIsSending(true);
       try {
@@ -988,7 +988,7 @@ export default function ChatPage() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           publicKey: keys.publicKeyBase64,
           encryptedPrivateKey: encryptedBackup
         }),
@@ -997,16 +997,16 @@ export default function ChatPage() {
       if (res.ok) {
         // Save the new private key to IndexedDB
         await storePrivateKey(currentUser.hikeId, keys.privateKey);
-        
+
         // Update currentUser state in localStorage and reactively
-        const updatedUser = { 
-          ...currentUser, 
+        const updatedUser = {
+          ...currentUser,
           publicKey: keys.publicKeyBase64,
           encryptedPrivateKey: encryptedBackup
         };
         setCurrentUser(updatedUser);
         localStorage.setItem("user", JSON.stringify(updatedUser));
-        
+
         setHasPrivateKey(true);
         alert("E2EE Keys successfully regenerated and securely backed up to the server! Your future conversations are fully secure.");
       } else {
@@ -1040,15 +1040,15 @@ export default function ChatPage() {
 
       const decryptedKey = await decryptPrivateKeyWithPassword(meData.encryptedPrivateKey, password);
       await storePrivateKey(currentUser.hikeId, decryptedKey);
-      
+
       setHasPrivateKey(true);
       alert("E2EE Private Key successfully restored! All your messages will now be decrypted.");
-      
+
       // Refresh current chat history to decrypt it instantly
       if (activeChat) {
         fetchHistory(activeChat, currentUser);
       }
-      
+
       // Refresh user lists to decrypt sidebar last messages
       fetchUsers();
     } catch (err) {
@@ -1078,14 +1078,14 @@ export default function ChatPage() {
     setCallTimer(0);
     setIsMuted(false);
     setIsCameraOn(true);
-    
+
     // Play loop ringing sound
     try {
       const audio = new Audio("/assets/guitar-notification.mp3");
       audio.loop = true;
       audio.play().catch(e => console.log("Calling sound failed to play:", e));
       callingAudioRef.current = audio;
-    } catch {}
+    } catch { }
 
     // Automatically transition to "connected" after 3.5 seconds
     setTimeout(() => {
@@ -1100,7 +1100,7 @@ export default function ChatPage() {
           try {
             const connectedAudio = new Audio("/assets/sci-fi-confirmation.mp3");
             connectedAudio.play().catch(e => console.log("Connected sound failed to play:", e));
-          } catch {}
+          } catch { }
           return "connected";
         }
         return currentStatus;
@@ -1163,7 +1163,7 @@ export default function ChatPage() {
       if (res.ok) {
         setIsMenuOpen(false);
         await fetchChatSettings();
-        
+
         alert(
           newHiddenState
             ? "Conversation hidden! Enter your hidden vault PIN in the sidebar to reveal it."
@@ -1185,7 +1185,7 @@ export default function ChatPage() {
   // Unified user list sorted like WhatsApp: recent conversation partners at the top, others below
   const sortedUnifiedUsers = React.useMemo(() => {
     const recentIds = recentChats.map(c => c._id);
-    
+
     // Determine which peers are hidden
     const hiddenPeerIds = chatSettings
       .filter(s => s.isHidden)
@@ -1214,8 +1214,8 @@ export default function ChatPage() {
       return sortedUnifiedUsers;
     }
     const query = debouncedSearchQuery.toLowerCase().replace(/^@/, '');
-    return sortedUnifiedUsers.filter(user => 
-      user.hikeId.toLowerCase().includes(query) || 
+    return sortedUnifiedUsers.filter(user =>
+      user.hikeId.toLowerCase().includes(query) ||
       (user.email && user.email.toLowerCase().includes(query))
     );
   }, [sortedUnifiedUsers, debouncedSearchQuery]);
@@ -1232,19 +1232,17 @@ export default function ChatPage() {
     <div className="flex h-screen w-full bg-background overflow-hidden">
 
       {/* ── Sidebar ───────────────────────────────────────── */}
-      <div 
-        className={`h-full border-r border-border flex flex-col bg-card z-20 transition-all duration-300 ${
-          activeChat ? "hidden md:flex" : "flex w-full md:flex"
-        } ${
-          isSidebarCollapsed ? "md:w-20" : "md:w-80"
-        }`}
+      <div
+        className={`h-full border-r border-border flex flex-col bg-card z-20 transition-all duration-300 ${activeChat ? "hidden md:flex" : "flex w-full md:flex"
+          } ${isSidebarCollapsed ? "md:w-20" : "md:w-80"
+          }`}
       >
 
         {/* Header */}
         <div className={`p-4 border-b border-border flex flex-col gap-3 transition-all ${isSidebarCollapsed ? "items-center px-2" : ""}`}>
           <div className={`flex w-full ${isSidebarCollapsed ? "flex-col items-center gap-4" : "items-center justify-between"}`}>
             <div className="flex items-center gap-2">
-              <Image src={ChatXiconsvg} alt="" width={35} className="shrink-0" />
+              <Image src={logo} alt="" width={35} className="shrink-0" />
               {!isSidebarCollapsed && (
                 <h1 className="text-xl font-bold tracking-tight text-foreground animate-fade-in">ChatX</h1>
               )}
@@ -1349,13 +1347,12 @@ export default function ChatPage() {
                         whileHover={{ scale: 1.01 }}
                         whileTap={{ scale: 0.99 }}
                         onClick={() => selectChat(user)}
-                        className={`relative cursor-pointer transition-all flex items-center rounded-xl p-3 gap-3 ${
-                          isActive
+                        className={`relative cursor-pointer transition-all flex items-center rounded-xl p-3 gap-3 ${isActive
                             ? "bg-indigo-500/15 border-l-4 border-indigo-600 pl-2"
                             : user.unreadCount > 0
-                            ? "bg-indigo-500/5 border-l-4 border-indigo-500/40 pl-2 hover:bg-indigo-500/10"
-                            : "hover:bg-muted/50"
-                        }`}
+                              ? "bg-indigo-500/5 border-l-4 border-indigo-500/40 pl-2 hover:bg-indigo-500/10"
+                              : "hover:bg-muted/50"
+                          }`}
                       >
                         {/* Dynamic DiceBear Profile Avatar */}
                         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -1364,7 +1361,7 @@ export default function ChatPage() {
                           alt={user.hikeId}
                           className="w-11 h-11 rounded-full object-cover border border-border shadow-sm shrink-0"
                         />
-                        
+
                         {/* User Info & Last Message */}
                         <div className="flex-1 min-w-0 overflow-hidden animate-fade-in">
                           <div className="flex justify-between items-baseline mb-0.5">
@@ -1424,11 +1421,10 @@ export default function ChatPage() {
 
         {/* User Profile & Action Bar */}
         <div className={`border-t border-border bg-muted/20 flex flex-col transition-all duration-300 ${isSidebarCollapsed ? "p-3 items-center" : "p-3"}`}>
-          <div className={`w-full flex ${
-            isSidebarCollapsed ? "flex-col items-center gap-3.5" : "items-center justify-between gap-3"
-          }`}>
+          <div className={`w-full flex ${isSidebarCollapsed ? "flex-col items-center gap-3.5" : "items-center justify-between gap-3"
+            }`}>
             {/* Clickable Profile Section (Opens Settings) */}
-            <div 
+            <div
               onClick={() => {
                 if (currentUser) checkPrivateKey(currentUser.hikeId, currentUser.publicKey);
                 setIsSettingsOpen(true);
@@ -1436,7 +1432,7 @@ export default function ChatPage() {
               className="flex items-center gap-2.5 overflow-hidden cursor-pointer shrink-0"
               title="View Profile / Settings"
             >
-              <div 
+              <div
                 className="w-9 h-9 rounded-full bg-linear-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white font-bold text-sm shrink-0 border border-border shadow-xs"
                 title={isSidebarCollapsed ? "View Profile / Settings" : undefined}
               >
@@ -1472,9 +1468,8 @@ export default function ChatPage() {
       <motion.div
         animate={nudgeShake ? { x: [-15, 15, -15, 15, -8, 8, -4, 4, 0] } : {}}
         transition={{ duration: 0.5 }}
-        className={`flex-1 flex flex-col relative transition-all duration-300 ${
-          activeChat ? "flex w-full" : "hidden md:flex"
-        }`}
+        className={`flex-1 flex flex-col relative transition-all duration-300 ${activeChat ? "flex w-full" : "hidden md:flex"
+          }`}
         style={{ background: "linear-gradient(135deg, var(--color-background), var(--color-muted))" }}
       >
         {activeChat ? (
@@ -1510,7 +1505,7 @@ export default function ChatPage() {
                 >
                   <Phone className="w-5 h-5" />
                 </button>
-                
+
                 <button
                   onClick={() => startCall("video")}
                   className="hover:text-indigo-500 transition-colors cursor-pointer"
@@ -1518,7 +1513,7 @@ export default function ChatPage() {
                 >
                   <Video className="w-5 h-5" />
                 </button>
-                
+
                 <div className="relative">
                   <button
                     onClick={() => setIsMenuOpen(prev => !prev)}
@@ -1550,7 +1545,7 @@ export default function ChatPage() {
                             <Trash className="w-4 h-4" />
                             Clear Chat History
                           </button>
-                          
+
                           <button
                             onClick={handleToggleHideChat}
                             className="w-full text-left px-4 py-2 text-sm hover:bg-muted text-foreground flex items-center gap-2.5 transition-colors font-medium cursor-pointer"
@@ -1622,7 +1617,7 @@ export default function ChatPage() {
                 {messages.map((msg, idx) => {
                   const isMine = isSameId(msg.senderId, currentUser);
                   const isFirstUnread = firstUnreadMessageId && msg._id === firstUnreadMessageId;
-                  
+
                   return (
                     <React.Fragment key={msg._id || idx}>
                       {(() => {
@@ -1654,7 +1649,7 @@ export default function ChatPage() {
                           <div className="grow border-t border-rose-500/30"></div>
                         </div>
                       )}
-                      
+
                       {msg.isNudge ? (
                         <motion.div
                           initial={{ opacity: 0, scale: 0.9 }}
@@ -1671,15 +1666,13 @@ export default function ChatPage() {
                         <div
                           onMouseEnter={() => handleMessageMouseEnter(msg._id)}
                           onMouseLeave={() => handleMessageMouseLeave(msg._id)}
-                          className={`flex flex-col relative max-w-[75%] group mb-2.5 ${
-                            isMine ? "self-end items-end" : "self-start items-start"
-                          }`}
+                          className={`flex flex-col relative max-w-[75%] group mb-2.5 ${isMine ? "self-end items-end" : "self-start items-start"
+                            }`}
                         >
                           {/* Floating Reaction & Action Bar */}
                           {hoveredMessageId === msg._id && (
-                            <div className={`absolute top-1/2 -translate-y-1/2 flex items-center gap-1 bg-card border border-border rounded-full p-1 shadow-lg backdrop-blur-md z-30 transition-all ${
-                              isMine ? "left-[-95px]" : "right-[-95px]"
-                            }`}>
+                            <div className={`absolute top-1/2 -translate-y-1/2 flex items-center gap-1 bg-card border border-border rounded-full p-1 shadow-lg backdrop-blur-md z-30 transition-all ${isMine ? "left-[-95px]" : "right-[-95px]"
+                              }`}>
                               {/* Smile reaction picker */}
                               <div className="relative">
                                 <button
@@ -1693,7 +1686,7 @@ export default function ChatPage() {
                                 >
                                   <Smile className="w-3.5 h-3.5" />
                                 </button>
-                                
+
                                 <AnimatePresence>
                                   {activeMessageReactionId === msg._id && (
                                     <motion.div
@@ -1701,9 +1694,8 @@ export default function ChatPage() {
                                       animate={{ opacity: 1, scale: 1, y: 0 }}
                                       exit={{ opacity: 0, scale: 0.8, y: 10 }}
                                       transition={{ type: "spring", stiffness: 300, damping: 25 }}
-                                      className={`absolute bottom-8 z-40 bg-card/95 border border-border shadow-2xl backdrop-blur-md border-indigo-500/10 items-center gap-1.5 p-1.5 rounded-full flex ${
-                                        isMine ? "right-0 origin-bottom-right" : "left-0 origin-bottom-left"
-                                      }`}
+                                      className={`absolute bottom-8 z-40 bg-card/95 border border-border shadow-2xl backdrop-blur-md border-indigo-500/10 items-center gap-1.5 p-1.5 rounded-full flex ${isMine ? "right-0 origin-bottom-right" : "left-0 origin-bottom-left"
+                                        }`}
                                     >
                                       {/* Standard 6 Emojis Horizontal Bar */}
                                       {["❤️", "👍", "😂", "😮", "😢", "🔥"].map((emoji) => (
@@ -1771,21 +1763,19 @@ export default function ChatPage() {
                             initial={{ opacity: 0, y: 8, scale: 0.96 }}
                             animate={{ opacity: 1, y: 0, scale: 1 }}
                             transition={{ type: "spring", bounce: 0.25, duration: 0.3 }}
-                            className={`px-4 py-2.5 rounded-2xl shadow-xs relative ${
-                              isMine
+                            className={`px-4 py-2.5 rounded-2xl shadow-xs relative ${isMine
                                 ? "bg-indigo-600 text-white rounded-tr-sm"
                                 : "bg-card text-foreground rounded-tl-sm border border-border"
-                            }`}
+                              }`}
                           >
                             {/* Reply Quote Block inside bubble */}
                             {msg.replyTo && (() => {
                               const parentMsg = messages.find(m => m._id === msg.replyTo);
                               return (
-                                <div className={`text-xs p-2 mb-1.5 rounded-xl border-l-4 font-medium flex flex-col gap-0.5 max-w-full truncate ${
-                                  isMine
+                                <div className={`text-xs p-2 mb-1.5 rounded-xl border-l-4 font-medium flex flex-col gap-0.5 max-w-full truncate ${isMine
                                     ? "bg-indigo-700/40 border-indigo-400 text-indigo-100"
                                     : "bg-muted/80 border-indigo-500 text-muted-foreground"
-                                }`}>
+                                  }`}>
                                   <span className="text-[9px] font-bold uppercase tracking-wider opacity-85">
                                     {parentMsg ? (isSameId(parentMsg.senderId, currentUser) ? "You" : activeChat.hikeId) : "Secure Reply"}
                                   </span>
@@ -1800,16 +1790,16 @@ export default function ChatPage() {
                             {msg.mediaUrl && (
                               <div className="media-attachment-container select-none">
                                 {msg.mediaType?.startsWith("image/") ? (
-                                  <div 
-                                    className="mb-2 max-w-xs overflow-hidden rounded-xl border border-white/10 shadow-md cursor-pointer hover:scale-[1.01] hover:opacity-95 transition-all duration-200" 
+                                  <div
+                                    className="mb-2 max-w-xs overflow-hidden rounded-xl border border-white/10 shadow-md cursor-pointer hover:scale-[1.01] hover:opacity-95 transition-all duration-200"
                                     onClick={() => setActiveLightboxImage(msg.mediaUrl)}
                                     title="Open full size image"
                                   >
                                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                                    <img 
-                                      src={msg.mediaUrl} 
-                                      alt={msg.mediaName || "Shared image"} 
-                                      className="w-full h-auto object-cover max-h-64 rounded-xl" 
+                                    <img
+                                      src={msg.mediaUrl}
+                                      alt={msg.mediaName || "Shared image"}
+                                      className="w-full h-auto object-cover max-h-64 rounded-xl"
                                     />
                                   </div>
                                 ) : msg.mediaType?.startsWith("video/") ? (
@@ -1821,11 +1811,10 @@ export default function ChatPage() {
                                     <audio src={msg.mediaUrl} controls className="w-full text-xs animate-fade-in" />
                                   </div>
                                 ) : (
-                                  <div className={`mb-2 p-3 rounded-xl flex items-center gap-3 w-64 border shadow-xs ${
-                                    isMine 
-                                      ? "bg-indigo-700/40 border-indigo-500/30 text-white" 
+                                  <div className={`mb-2 p-3 rounded-xl flex items-center gap-3 w-64 border shadow-xs ${isMine
+                                      ? "bg-indigo-700/40 border-indigo-500/30 text-white"
                                       : "bg-muted border-border text-foreground"
-                                  }`}>
+                                    }`}>
                                     <FileText className="w-8 h-8 shrink-0 text-indigo-400 animate-pulse" />
                                     <div className="min-w-0 flex-1">
                                       <p className="text-xs font-semibold truncate" title={msg.mediaName}>
@@ -1835,10 +1824,10 @@ export default function ChatPage() {
                                         {msg.mediaSize ? (msg.mediaSize / (1024 * 1024)).toFixed(2) + " MB" : "Unknown size"}
                                       </p>
                                     </div>
-                                    <a 
-                                      href={msg.mediaUrl} 
-                                      target="_blank" 
-                                      rel="noopener noreferrer" 
+                                    <a
+                                      href={msg.mediaUrl}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
                                       className={`p-1.5 rounded-lg hover:bg-white/10 transition-colors shrink-0 ${isMine ? "text-white" : "text-indigo-500"}`}
                                       title="Download File"
                                     >
@@ -1866,9 +1855,8 @@ export default function ChatPage() {
                               initial={{ opacity: 0, scale: 0.75, y: 5 }}
                               animate={{ opacity: 1, scale: 1, y: 0 }}
                               exit={{ opacity: 0, scale: 0.75, y: 5 }}
-                              className={`absolute bottom-[-10px] flex items-center gap-0.5 bg-card/95 border border-border shadow-md rounded-full px-1.5 py-0.5 z-20 select-none backdrop-blur-md transition-all hover:scale-110 duration-150 cursor-pointer ${
-                                isMine ? "right-3.5" : "left-3.5"
-                              }`}
+                              className={`absolute bottom-[-10px] flex items-center gap-0.5 bg-card/95 border border-border shadow-md rounded-full px-1.5 py-0.5 z-20 select-none backdrop-blur-md transition-all hover:scale-110 duration-150 cursor-pointer ${isMine ? "right-3.5" : "left-3.5"
+                                }`}
                             >
                               {Array.from(new Set(msg.reactions.map(r => r.emoji))).map((emoji, eIdx) => (
                                 <span
@@ -1900,7 +1888,7 @@ export default function ChatPage() {
               <div ref={messagesEndRef} />
             </div>
 
-{/* Replying Quote Composer Preview */}
+            {/* Replying Quote Composer Preview */}
             {replyingToMessage && (
               <div className="bg-card border-t border-x border-border max-w-4xl mx-auto rounded-t-2xl px-5 py-3 flex items-center justify-between gap-4 animate-slide-up shadow-xs">
                 <div className="flex items-center gap-2.5 overflow-hidden">
@@ -1949,10 +1937,10 @@ export default function ChatPage() {
                   {pendingFilePreview ? (
                     <div className="w-10 h-10 rounded-lg overflow-hidden border border-border shrink-0 select-none">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img 
-                        src={pendingFilePreview} 
-                        alt="Local preview" 
-                        className="w-full h-full object-cover" 
+                      <img
+                        src={pendingFilePreview}
+                        alt="Local preview"
+                        className="w-full h-full object-cover"
                       />
                     </div>
                   ) : pendingFile.type?.startsWith("audio/") ? (
@@ -1964,7 +1952,7 @@ export default function ChatPage() {
                       <FileText className="w-5 h-5" />
                     </div>
                   )}
-                  
+
                   <div className="flex flex-col min-w-0">
                     <span className="text-[10px] font-black uppercase tracking-wider text-indigo-500 flex items-center gap-1">
                       <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 inline-block animate-ping" />
@@ -1978,7 +1966,7 @@ export default function ChatPage() {
                     </span>
                   </div>
                 </div>
-                
+
                 {/* Dismiss Button */}
                 <button
                   type="button"
@@ -2160,7 +2148,7 @@ export default function ChatPage() {
                       Hidden Vault Security
                     </h4>
                   </div>
-                  
+
                   <form onSubmit={handleSetPin} className="space-y-3">
                     <p className="text-xs text-muted-foreground leading-relaxed">
                       Set or update your 4-digit PIN. This PIN is used to encrypt and lock/unlock your hidden conversational vault from the sidebar.
@@ -2203,7 +2191,7 @@ export default function ChatPage() {
                       End-to-End Encryption Keys
                     </h4>
                   </div>
-                  
+
                   <div className="space-y-3">
                     {!hasPrivateKey ? (
                       <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl space-y-2">
@@ -2436,7 +2424,7 @@ export default function ChatPage() {
       {/* Centered Full Emoji Picker Modal Overlay */}
       <AnimatePresence>
         {expandedMessageReactionId && (
-          <div 
+          <div
             onClick={() => setExpandedMessageReactionId(null)}
             className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-50 p-4"
           >
@@ -2474,11 +2462,10 @@ export default function ChatPage() {
                     key={tab.id}
                     type="button"
                     onClick={() => setActiveReactionTab(tab.id)}
-                    className={`px-2.5 py-1 text-xs rounded-xl font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
-                      activeReactionTab === tab.id
+                    className={`px-2.5 py-1 text-xs rounded-xl font-bold flex items-center gap-1.5 transition-all cursor-pointer ${activeReactionTab === tab.id
                         ? "bg-indigo-600 text-white shadow-sm"
                         : "bg-muted text-muted-foreground hover:bg-muted/80"
-                    }`}
+                      }`}
                   >
                     <span>{tab.icon}</span>
                     <span>{tab.label}</span>
@@ -2491,11 +2478,11 @@ export default function ChatPage() {
                 {(() => {
                   const emojisList =
                     activeReactionTab === "smileys"
-                      ? ["😀","😃","😄","😁","😆","😅","😂","🤣","😊","😇","🙂","🙃","😉","😍","🥰","😘","😋","😛","😜","🤪","😎","🥳","😏","😒","😔","🥺","😢","😭","😤","😡","🤯","😳","🥵","🥶","😱","🤔","🫣","🤭","🤫","😶","😐","😑","😬","🫠","🙄","😯","😴","🥴"]
+                      ? ["😀", "😃", "😄", "😁", "😆", "😅", "😂", "🤣", "😊", "😇", "🙂", "🙃", "😉", "😍", "🥰", "😘", "😋", "😛", "😜", "🤪", "😎", "🥳", "😏", "😒", "😔", "🥺", "😢", "😭", "😤", "😡", "🤯", "😳", "🥵", "🥶", "😱", "🤔", "🫣", "🤭", "🤫", "😶", "😐", "😑", "😬", "🫠", "🙄", "😯", "😴", "🥴"]
                       : activeReactionTab === "gestures"
-                      ? ["👍","👎","👊","✊","🤛","🤜","🙌","👏","🫶","👐","🤲","🤝","✌️","🤟","🤘","👌","🤌","🤏","👈","👉","👆","👇","☝️","👋","✍️","💪","🙏","🖕","❤️","🧡","💛","💚","💙","💜","🖤","🤍","🤎","💔","❣️","💕","💞","💓","💗","💖","💘","💝"]
-                      : ["🔥","✨","🌟","⭐","🎉","💯","🚀","💡","👀","🎈","🎁","🎨","🎭","🎮","🎯","🍿","🍔","🍕","🌮","🍣","🍩","🍪","🎂","🧁","🍫","🍬","🍺","🍻","🥂","🍷","☕","🍵","🌏","☀️","🌙","☁️","🌈","☔","⛄","🐾","🐱","🐶","🦁","🦄","🐼","🐨","🦊"];
-                  
+                        ? ["👍", "👎", "👊", "✊", "🤛", "🤜", "🙌", "👏", "🫶", "👐", "🤲", "🤝", "✌️", "🤟", "🤘", "👌", "🤌", "🤏", "👈", "👉", "👆", "👇", "☝️", "👋", "✍️", "💪", "🙏", "🖕", "❤️", "🧡", "💛", "💚", "💙", "💜", "🖤", "🤍", "🤎", "💔", "❣️", "💕", "💞", "💓", "💗", "💖", "💘", "💝"]
+                        : ["🔥", "✨", "🌟", "⭐", "🎉", "💯", "🚀", "💡", "👀", "🎈", "🎁", "🎨", "🎭", "🎮", "🎯", "🍿", "🍔", "🍕", "🌮", "🍣", "🍩", "🍪", "🎂", "🧁", "🍫", "🍬", "🍺", "🍻", "🥂", "🍷", "☕", "🍵", "🌏", "☀️", "🌙", "☁️", "🌈", "☔", "⛄", "🐾", "🐱", "🐶", "🦁", "🦄", "🐼", "🐨", "🦊"];
+
                   return emojisList.map((emoji) => (
                     <button
                       key={emoji}

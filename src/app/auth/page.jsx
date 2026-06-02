@@ -286,13 +286,13 @@ export default function AuthPage() {
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
               transition={{ type: "spring", bounce: 0.5, delay: 0.1 }}
-              className="w-14 h-14 bg-linear-to-tr from-blue-600 via-indigo-600 to-purple-600 rounded-2xl flex items-center justify-center shadow-[0_4px_20px_rgba(99,102,241,0.4)] mb-4 mx-auto md:mx-0"
+              className="w-20 h-14 rounded-2xl flex items-center justify-center mb-4 mx-auto md:mx-0"
             >
               {/* <MessageCircle className="text-white w-7 h-7" /> */}
               <Image
                 src={logo}
                 alt="Logo"
-                className="w-7 h-7"
+                className="w-full h-full"
                 loading="eager"
               />
             </motion.div>
