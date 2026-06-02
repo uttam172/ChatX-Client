@@ -6,7 +6,7 @@ import {
     Search, Settings, MessageSquare, Phone, Video,
     MoreVertical, Send, Lock, Unlock, Zap, X, Loader2, LogOut, Copy, Check,
     Trash, ShieldCheck, Smile, CornerUpLeft, Paperclip, FileText, Music, Download,
-    ChevronLeft, AlignStartVertical, AlignEndVertical, Pencil
+    ChevronLeft, AlignStartVertical, AlignEndVertical, Pencil, Bell, BellOff, BellRing
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { initiateSocketConnection, getSocket, disconnectSocket } from "@/utils/socket";
@@ -168,6 +168,24 @@ export default function ChatPage() {
     const [typingUsers, setTypingUsers] = useState({});
     const isTypingRef = useRef(false);
     const typingTimeoutRef = useRef(null);
+
+    // Notification states & refs
+    const [notificationPermission, setNotificationPermission] = useState(() => {
+        if (typeof window !== "undefined" && "Notification" in window) {
+            return Notification.permission;
+        }
+        return "default";
+    });
+    const [inAppToasts, setInAppToasts] = useState([]);
+    const [isNotificationMuted, setIsNotificationMuted] = useState(() => {
+        if (typeof window !== "undefined") {
+            return localStorage.getItem("chatx_notifications_muted") === "true";
+        }
+        return false;
+    });
+    const isNotificationMutedRef = useRef(false);
+    isNotificationMutedRef.current = isNotificationMuted;
+    const selectChatRef = useRef(null);
 
     const hoverTimeoutRef = useRef(null);
 
@@ -470,6 +488,157 @@ export default function ChatPage() {
         decryptAll();
     }, [recentChats, currentUser]);
 
+    // ── Robust Notification System ──────────────────────────
+
+    const toggleNotificationPermission = async () => {
+        if (typeof window === "undefined" || !("Notification" in window)) {
+            alert("This browser does not support desktop notifications.");
+            return;
+        }
+
+        if (Notification.permission === "denied") {
+            alert("Notification permission is currently blocked. Please reset site permissions in your browser's address bar to enable notifications.");
+            return;
+        }
+
+        if (Notification.permission === "default") {
+            const res = await Notification.requestPermission();
+            setNotificationPermission(res);
+            if (res === "granted") {
+                setIsNotificationMuted(false);
+                localStorage.setItem("chatx_notifications_muted", "false");
+                // Play a quick test sound and show a premium test notification
+                try {
+                    const audio = new Audio("/assets/bubble-pop-up-alert-notification.mp3");
+                    audio.play().catch(() => {});
+                } catch {}
+                new Notification("Notifications Enabled! 🔔", {
+                    body: "You will now receive secure notifications for incoming messages and nudges.",
+                    icon: "/favicon.ico",
+                    silent: true
+                });
+            }
+        } else if (Notification.permission === "granted") {
+            // Toggle application-level mute
+            setIsNotificationMuted(prev => {
+                const newValue = !prev;
+                localStorage.setItem("chatx_notifications_muted", String(newValue));
+                
+                // Show a quick standard confirmation notification when unmuting
+                if (!newValue) {
+                    try {
+                        const audio = new Audio("/assets/bubble-pop-up-alert-notification.mp3");
+                        audio.play().catch(() => {});
+                    } catch {}
+                    new Notification("Notifications Unmuted 🔔", {
+                        body: "You will receive message alerts again.",
+                        icon: "/favicon.ico",
+                        silent: true
+                    });
+                }
+                return newValue;
+            });
+        }
+    };
+
+    const showDesktopNotification = useCallback((contactUser, decryptedText, msg) => {
+        if (typeof window === "undefined" || !("Notification" in window) || Notification.permission !== "granted" || isNotificationMutedRef.current) return;
+
+        const title = msg.isNudge 
+            ? `⚡ Nudge from ${contactUser.hikeId}` 
+            : `Message from ${contactUser.hikeId}`;
+
+        let body = decryptedText;
+        if (msg.mediaUrl) {
+            if (msg.mediaType?.startsWith("image/")) body = "📷 Shared an image";
+            else if (msg.mediaType?.startsWith("video/")) body = "🎥 Shared a video";
+            else if (msg.mediaType?.startsWith("audio/")) body = "🎵 Shared an audio message";
+            else body = `📄 Shared a file: ${msg.mediaName || "document"}`;
+        }
+
+        const options = {
+            body: body,
+            icon: "/favicon.ico",
+            tag: contactUser._id, // Groups notifications from the same sender
+            requireInteraction: false,
+            silent: true // App plays its own alert sound, so system notification is kept silent
+        };
+
+        try {
+            const n = new Notification(title, options);
+            n.onclick = (e) => {
+                e.preventDefault();
+                window.focus();
+                if (selectChatRef.current) {
+                    selectChatRef.current(contactUser);
+                }
+                n.close();
+            };
+        } catch (err) {
+            console.error("Failed to render desktop notification:", err);
+        }
+    }, []);
+
+    const addInAppToast = useCallback((contactUser, decryptedText, msg) => {
+        if (isNotificationMutedRef.current) return;
+
+        const id = Date.now() + Math.random().toString();
+        
+        let body = decryptedText;
+        if (msg.mediaUrl) {
+            if (msg.mediaType?.startsWith("image/")) body = "📷 Image";
+            else if (msg.mediaType?.startsWith("video/")) body = "🎥 Video";
+            else if (msg.mediaType?.startsWith("audio/")) body = "🎵 Audio";
+            else body = `📄 File: ${msg.mediaName || "document"}`;
+        } else if (msg.isNudge) {
+            body = "⚡ Sent a Nudge!";
+        }
+
+        setInAppToasts(prev => [...prev, { id, contactUser, text: body }]);
+
+        // Auto-remove after 4 seconds
+        setTimeout(() => {
+            setInAppToasts(prev => prev.filter(t => t.id !== id));
+        }, 4000);
+    }, []);
+
+    // Blinking tab title when tab is hidden and unread messages accumulate
+    useEffect(() => {
+        if (typeof window === "undefined") return;
+
+        let titleInterval = null;
+        let isBlinking = false;
+
+        const updateTitle = () => {
+            const totalUnread = recentChats.reduce((sum, c) => sum + (c.unreadCount || 0), 0);
+
+            if (totalUnread > 0 && document.visibilityState === "hidden" && !isNotificationMuted) {
+                if (!titleInterval) {
+                    titleInterval = setInterval(() => {
+                        document.title = isBlinking 
+                            ? `💬 (${totalUnread}) New Message!`
+                            : `ChatX - E2EE Secure Chat`;
+                        isBlinking = !isBlinking;
+                    }, 1500);
+                }
+            } else {
+                if (titleInterval) {
+                    clearInterval(titleInterval);
+                    titleInterval = null;
+                }
+                document.title = "ChatX - E2EE Secure Chat";
+            }
+        };
+
+        updateTitle();
+
+        document.addEventListener("visibilitychange", updateTitle);
+        return () => {
+            document.removeEventListener("visibilitychange", updateTitle);
+            if (titleInterval) clearInterval(titleInterval);
+        };
+    }, [recentChats, isNotificationMuted]);
+
     // ── Auth & Socket setup ─────────────────────────────────
     useEffect(() => {
         const token = localStorage.getItem("token");
@@ -570,33 +739,12 @@ export default function ChatPage() {
                 }
             }
 
-            // Play alert sound for any incoming peer message
-            if (isPeerMessage) {
-                try {
-                    const audio = new Audio("/assets/bubble-pop-up-alert-notification.mp3");
-                    audio.play().catch(e => console.log("Audio playback was blocked or failed:", e));
-                } catch { }
-            }
-
-            if (msg.isNudge) {
-                setNudgeShake(true);
-                try {
-                    const audio = new Audio("/assets/bell-notification.mp3");
-                    audio.play().catch(e => console.log("Audio playback was blocked or failed:", e));
-                } catch { }
-                setTimeout(() => setNudgeShake(false), 800);
-
-                if (isActive) {
-                    setMessages(prev => [...prev, { ...msg, text: "⚡ Sent a Nudge!" }]);
-                }
-                return;
-            }
-
-            if (isActive) {
+            // Decrypt the message text first so it is available for notifications and sidebar preview updates
+            let decryptedText = msg.isNudge ? "⚡ Sent a Nudge!" : "🔒 [Encrypted Message]";
+            if (isPeerMessage && !msg.isNudge) {
                 try {
                     const privateKey = await getPrivateKey(parsedUser.hikeId);
                     if (privateKey) {
-                        let decryptedText;
                         try {
                             decryptedText = await decryptMessage(
                                 msg.encryptedAesKeyReceiver,
@@ -605,21 +753,64 @@ export default function ChatPage() {
                                 privateKey
                             );
                         } catch {
-                            decryptedText = await decryptMessage(
-                                msg.encryptedAesKeySender,
-                                msg.ciphertext,
-                                msg.iv,
-                                privateKey
-                            );
+                            try {
+                                decryptedText = await decryptMessage(
+                                    msg.encryptedAesKeySender,
+                                    msg.ciphertext,
+                                    msg.iv,
+                                    privateKey
+                                );
+                            } catch (decErr) {
+                                console.error("Decryption failed in socket receive_message:", decErr);
+                                decryptedText = "🔒 [Could not decrypt]";
+                            }
                         }
-
-                        // Add the new message as normal
-                        const newMsg = { ...msg, text: decryptedText, read: true };
-                        setMessages(prev => [...prev, newMsg]);
                     }
                 } catch (err) {
-                    console.error("Failed to decrypt received message with both keys", err);
-                    setMessages(prev => [...prev, { ...msg, text: "🔒 [Could not decrypt]" }]);
+                    console.error("Failed to load key for real-time decryption:", err);
+                }
+            }
+
+            // Sync the decryptedLastMessages state with the decrypted text immediately
+            if (isPeerMessage) {
+                setDecryptedLastMessages(prev => ({
+                    ...prev,
+                    [contactId]: { text: decryptedText, msgId: msg._id }
+                }));
+            }
+
+            // Play alert sound for any incoming peer message (if not muted)
+            if (isPeerMessage && !isNotificationMutedRef.current) {
+                try {
+                    const audio = new Audio(msg.isNudge ? "/assets/bell-notification.mp3" : "/assets/bubble-pop-up-alert-notification.mp3");
+                    audio.play().catch(e => console.log("Audio playback was blocked or failed:", e));
+                } catch { }
+            }
+
+            if (msg.isNudge) {
+                setNudgeShake(true);
+                setTimeout(() => setNudgeShake(false), 800);
+
+                if (isActive) {
+                    setMessages(prev => [...prev, { ...msg, text: "⚡ Sent a Nudge!" }]);
+                }
+            } else {
+                if (isActive) {
+                    const newMsg = { ...msg, text: decryptedText, read: true };
+                    setMessages(prev => [...prev, newMsg]);
+                }
+            }
+
+            // Robust multi-layered notification trigger for peer messages
+            if (isPeerMessage && contactUser) {
+                const isTabHidden = typeof document !== "undefined" && document.visibilityState === "hidden";
+                if (isTabHidden || !isActive) {
+                    // System-level desktop notification (background tab or inactive chat)
+                    showDesktopNotification(contactUser, decryptedText, msg);
+                }
+                if (!isTabHidden && !isActive) {
+                    // Sliding in-app toast notification (user is active but in a different chat)
+                    addInAppToast(contactUser, decryptedText, msg);
                 }
             }
         });
@@ -733,9 +924,9 @@ export default function ChatPage() {
                 setMessages(prev => prev.map(m => m._id === msg._id ? updatedMsg : m));
             }
 
-            // Play alert sound for any incoming edited peer message
+            // Play alert sound for any incoming edited peer message (if not muted)
             const isPeerMessage = !isSameId(msg.senderId, parsedUser);
-            if (isPeerMessage) {
+            if (isPeerMessage && !isNotificationMutedRef.current) {
                 try {
                     const audio = new Audio("/assets/bubble-pop-up-alert-notification.mp3");
                     audio.play().catch(e => console.log("Audio playback was blocked or failed:", e));
@@ -794,7 +985,7 @@ export default function ChatPage() {
         });
 
         return () => { disconnectSocket(); };
-    }, [router, fetchUsers, checkPrivateKey]);
+    }, [router, fetchUsers, checkPrivateKey, addInAppToast, showDesktopNotification]);
 
     // ── Auto-scroll to latest message ──────────────────────
     useEffect(() => {
@@ -885,6 +1076,8 @@ export default function ChatPage() {
         fetchUsers();
         fetchChatSettings();
     }, [currentUser, fetchHistory, fetchUsers, fetchChatSettings, activeChat]);
+
+    selectChatRef.current = selectChat;
 
     // ── Hidden Vault toggle ─────────────────────────────────
     const handleVaultToggle = async () => {
@@ -1509,6 +1702,53 @@ export default function ChatPage() {
     return (
         <div className="flex h-screen w-full bg-background overflow-hidden">
 
+            {/* Sliding In-App Toast Notifications Container */}
+            <div className="fixed top-4 right-4 z-50 flex flex-col gap-2.5 max-w-sm pointer-events-none w-[calc(100vw-2rem)] select-none">
+                <AnimatePresence>
+                    {inAppToasts.map((toast) => (
+                        <motion.div
+                            key={toast.id}
+                            initial={{ opacity: 0, y: -20, scale: 0.9, x: 20 }}
+                            animate={{ opacity: 1, y: 0, scale: 1, x: 0 }}
+                            exit={{ opacity: 0, scale: 0.9, y: -10, transition: { duration: 0.15 } }}
+                            onClick={() => {
+                                if (selectChatRef.current) {
+                                    selectChatRef.current(toast.contactUser);
+                                }
+                                setInAppToasts(prev => prev.filter(t => t.id !== toast.id));
+                            }}
+                            className="pointer-events-auto w-full p-3.5 bg-card/90 backdrop-blur-md border border-border/80 shadow-2xl rounded-2xl flex items-center gap-3 cursor-pointer hover:bg-muted/30 hover:scale-[1.01] active:scale-[0.99] transition-all"
+                        >
+                            {/* Visual Avatar Icon */}
+                            <div className="w-9 h-9 rounded-full bg-linear-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white font-bold text-sm shrink-0 shadow-sm border border-white/10">
+                                {toast.contactUser.hikeId?.charAt(0).toUpperCase() || "?"}
+                            </div>
+                            
+                            {/* Message Details */}
+                            <div className="flex-1 min-w-0 overflow-hidden pr-2">
+                                <p className="text-xs font-bold text-indigo-500 dark:text-indigo-400 truncate leading-tight">
+                                    {toast.contactUser.hikeId}
+                                </p>
+                                <p className="text-xs text-foreground/80 truncate mt-0.5 max-w-[200px] leading-snug">
+                                    {toast.text}
+                                </p>
+                            </div>
+
+                            {/* Close Button */}
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    setInAppToasts(prev => prev.filter(t => t.id !== toast.id));
+                                }}
+                                className="p-1 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shrink-0"
+                            >
+                                <X className="w-3.5 h-3.5" />
+                            </button>
+                        </motion.div>
+                    ))}
+                </AnimatePresence>
+            </div>
+
             {/* ── Sidebar ───────────────────────────────────────── */}
             <div
                 className={`h-full border-r border-border flex flex-col bg-card z-20 transition-all duration-300 ${activeChat ? "hidden md:flex" : "flex w-full md:flex"
@@ -1728,7 +1968,42 @@ export default function ChatPage() {
                             )}
                         </div>
 
-                        <div className={`flex ${isSidebarCollapsed ? "flex-col items-center gap-2.5" : "items-center"}`}>
+                        <div className={`flex ${isSidebarCollapsed ? "flex-col items-center gap-2.5" : "items-center gap-1.5"}`}>
+                            {/* Desktop Notification Toggle */}
+                            <button
+                                onClick={toggleNotificationPermission}
+                                className={`p-2 rounded-lg transition-all shrink-0 cursor-pointer ${
+                                    notificationPermission === "granted"
+                                        ? isNotificationMuted
+                                            ? "text-amber-500 hover:bg-amber-500/10 active:bg-amber-500/20"
+                                            : "text-emerald-500 hover:bg-emerald-500/10 active:bg-emerald-500/20"
+                                        : notificationPermission === "denied"
+                                        ? "text-rose-400 hover:bg-rose-500/10 active:bg-rose-500/20"
+                                        : "text-amber-500 hover:bg-amber-500/10 active:bg-amber-500/20 animate-pulse"
+                                }`}
+                                title={
+                                    notificationPermission === "granted"
+                                        ? isNotificationMuted
+                                            ? "Notifications Muted. Click to Unmute. 🔔"
+                                            : "Mute Desktop Notifications 🔕"
+                                        : notificationPermission === "denied"
+                                        ? "Notifications Blocked. Reset site settings in your browser address bar to enable."
+                                        : "Enable Desktop Notifications 🔔"
+                                }
+                            >
+                                {notificationPermission === "granted" ? (
+                                    isNotificationMuted ? (
+                                        <BellOff className="w-5 h-5 animate-pulse" />
+                                    ) : (
+                                        <Bell className="w-5 h-5" />
+                                    )
+                                ) : notificationPermission === "denied" ? (
+                                    <BellOff className="w-5 h-5" />
+                                ) : (
+                                    <BellRing className="w-5 h-5" />
+                                )}
+                            </button>
+
                             {/* Logout Button */}
                             <button
                                 onClick={handleLogout}
