@@ -131,14 +131,17 @@ export default function AuthPage() {
         "rgba(59, 130, 246, 0.60)",  // blue
         "rgba(236, 72, 153, 0.70)",  // pink
         "rgba(20, 184, 166, 0.60)",  // teal
+        "rgba(59, 4, 186, 0.60)",  // royal blue
     ];
     const colors2 = [
         "rgba(20, 184, 166, 0.60)",  // teal
         "rgba(236, 72, 153, 0.70)",  // pink
         "rgba(139, 92, 246, 0.65)",  // violet
+        "rgba(59, 4, 186, 0.60)",  // royal blue
         "rgba(59, 130, 246, 0.60)",  // blue
     ];
     const colors3 = [
+        "rgba(59, 4, 186, 0.60)",  // royal blue
         "rgba(244, 63, 94, 0.65)",   // rose
         "rgba(168, 85, 247, 0.70)",  // purple
         "rgba(6, 182, 212, 0.60)",   // cyan
@@ -147,6 +150,7 @@ export default function AuthPage() {
     const colors4 = [
         "rgba(59, 130, 246, 0.65)",  // blue
         "rgba(20, 184, 166, 0.70)",  // teal
+        "rgba(59, 4, 186, 0.60)",  // royal blue
         "rgba(139, 92, 246, 0.60)",  // violet
         "rgba(244, 63, 94, 0.70)",   // rose
     ];
@@ -154,6 +158,7 @@ export default function AuthPage() {
         "rgba(59, 130, 246, 0.65)",  // blue
         "rgba(244, 63, 94, 0.70)",   // rose
         "rgba(139, 92, 246, 0.60)",  // violet
+        "rgba(59, 4, 186, 0.60)",  // royal blue
         "rgba(20, 184, 166, 0.70)",  // teal
     ];
 
