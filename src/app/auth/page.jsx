@@ -131,17 +131,17 @@ export default function AuthPage() {
         "rgba(59, 130, 246, 0.60)",  // blue
         "rgba(236, 72, 153, 0.70)",  // pink
         "rgba(20, 184, 166, 0.60)",  // teal
-        "rgba(59, 4, 186, 0.60)",  // royal blue
+        "rgba(59, 4, 186, 0.60)",    // royal blue
     ];
     const colors2 = [
         "rgba(20, 184, 166, 0.60)",  // teal
         "rgba(236, 72, 153, 0.70)",  // pink
         "rgba(139, 92, 246, 0.65)",  // violet
-        "rgba(59, 4, 186, 0.60)",  // royal blue
+        "rgba(59, 4, 186, 0.60)",    // royal blue
         "rgba(59, 130, 246, 0.60)",  // blue
     ];
     const colors3 = [
-        "rgba(59, 4, 186, 0.60)",  // royal blue
+        "rgba(59, 4, 186, 0.60)",    // royal blue
         "rgba(244, 63, 94, 0.65)",   // rose
         "rgba(168, 85, 247, 0.70)",  // purple
         "rgba(6, 182, 212, 0.60)",   // cyan
@@ -150,7 +150,7 @@ export default function AuthPage() {
     const colors4 = [
         "rgba(59, 130, 246, 0.65)",  // blue
         "rgba(20, 184, 166, 0.70)",  // teal
-        "rgba(59, 4, 186, 0.60)",  // royal blue
+        "rgba(59, 4, 186, 0.60)",    // royal blue
         "rgba(139, 92, 246, 0.60)",  // violet
         "rgba(244, 63, 94, 0.70)",   // rose
     ];
@@ -158,8 +158,36 @@ export default function AuthPage() {
         "rgba(59, 130, 246, 0.65)",  // blue
         "rgba(244, 63, 94, 0.70)",   // rose
         "rgba(139, 92, 246, 0.60)",  // violet
-        "rgba(59, 4, 186, 0.60)",  // royal blue
+        "rgba(59, 4, 186, 0.60)",    // royal blue
         "rgba(20, 184, 166, 0.70)",  // teal
+    ];
+    const colors6 = [
+        "rgba(244, 63, 94, 0.70)",   // rose
+        "rgba(59, 130, 246, 0.65)",  // blue
+        "rgba(59, 4, 186, 0.60)",    // royal blue
+        "rgba(139, 92, 246, 0.60)",  // violet
+        "rgba(20, 184, 166, 0.70)",  // teal
+    ];
+    const colors7 = [
+        "rgba(59, 130, 246, 0.65)",  // blue
+        "rgba(139, 92, 246, 0.60)",  // violet
+        "rgba(20, 184, 166, 0.70)",  // teal
+        "rgba(59, 4, 186, 0.60)",    // royal blue
+        "rgba(244, 63, 94, 0.70)",   // rose
+    ];
+    const colors8 = [
+        "rgba(245, 158, 11, 0.65)",  // amber
+        "rgba(239, 68, 68, 0.60)",    // red
+        "rgba(236, 72, 153, 0.70)",  // pink
+        "rgba(249, 115, 22, 0.60)",  // orange
+        "rgba(139, 92, 246, 0.65)",  // violet
+    ];
+    const colors9 = [
+        "rgba(16, 185, 129, 0.65)",  // emerald
+        "rgba(34, 197, 94, 0.60)",   // green
+        "rgba(20, 184, 166, 0.70)",  // teal
+        "rgba(6, 182, 212, 0.60)",   // cyan
+        "rgba(59, 130, 246, 0.65)",  // blue
     ];
 
     return (
@@ -174,42 +202,74 @@ export default function AuthPage() {
             <FloatingBlob
                 size={420}
                 colors={colors1}
-                xPath={["-10vw", "75vw", "20vw", "85vw", "-10vw"]}
-                yPath={["-10vh", "35vh", "80vh", "15vh", "-10vh"]}
-                scalePath={[1, 1.25, 0.9, 1.15, 1]}
-                duration={32}
+                xPath={["-20vw", "40vw", "110vw", "70vw", "10vw", "-20vw"]}
+                yPath={["-20vh", "80vh", "30vh", "110vh", "40vh", "-20vh"]}
+                scalePath={[1, 1.3, 0.8, 1.2, 0.9, 1]}
+                duration={38}
             />
             <FloatingBlob
                 size={460}
                 colors={colors2}
-                xPath={["5vw", "15vw", "65vw", "5vw", "90vw"]}
-                yPath={["5vh", "25vh", "5vh", "50vh", "90vh"]}
-                scalePath={[1, 1.15, 0.85, 1.2, 1]}
-                duration={36}
+                xPath={["110vw", "60vw", "-20vw", "20vw", "80vw", "110vw"]}
+                yPath={["110vh", "30vh", "60vh", "-20vh", "70vh", "110vh"]}
+                scalePath={[1.2, 0.9, 1.4, 0.8, 1.1, 1.2]}
+                duration={42}
             />
             <FloatingBlob
                 size={350}
                 colors={colors3}
-                xPath={["10vw", "5vw", "45vw", "95vw", "80vw"]}
-                yPath={["10vh", "30vh", "25vh", "65vh", "10vh"]}
-                scalePath={[0.9, 1.1, 0.95, 1.05, 0.9]}
-                duration={26}
+                xPath={["-15vw", "80vw", "10vw", "120vw", "30vw", "-15vw"]}
+                yPath={["115vh", "20vh", "75vh", "-10vh", "50vh", "115vh"]}
+                scalePath={[0.8, 1.2, 0.95, 1.3, 1.0, 0.8]}
+                duration={35}
             />
             <FloatingBlob
                 size={380}
                 colors={colors4}
-                xPath={["5vw", "80vw", "25vw", "10vw", "5vw"]}
-                yPath={["70vh", "15vh", "45vh", "85vh", "75vh"]}
-                scalePath={[1.1, 0.85, 1.15, 0.9, 1.1]}
-                duration={30}
+                xPath={["120vw", "10vw", "95vw", "-15vw", "60vw", "120vw"]}
+                yPath={["-15vh", "75vh", "15vh", "115vh", "45vh", "-15vh"]}
+                scalePath={[1.1, 1.35, 0.8, 1.15, 0.9, 1.1]}
+                duration={40}
             />
             <FloatingBlob
                 size={580}
                 colors={colors5}
-                xPath={["0vw", "20vw", "50vw", "100vw", "10vw"]}
-                yPath={["100vh", "90vh", "30vh", "200vh", "15vh"]}
-                scalePath={[1.6, 1.85, 0.15, 1.9, 0.5]}
-                duration={34}
+                xPath={["-10vw", "110vw", "40vw", "-20vw", "90vw", "-10vw"]}
+                yPath={["50vh", "-20vh", "120vh", "20vh", "110vh", "50vh"]}
+                scalePath={[1.3, 0.9, 1.25, 0.85, 1.1, 1.3]}
+                duration={45}
+            />
+            <FloatingBlob
+                size={580}
+                colors={colors6}
+                xPath={["60vw", "-15vw", "115vw", "20vw", "-10vw", "60vw"]}
+                yPath={["120vh", "40vh", "-15vh", "85vh", "10vh", "120vh"]}
+                scalePath={[1.0, 1.4, 0.85, 1.25, 0.9, 1.0]}
+                duration={36}
+            />
+            <FloatingBlob
+                size={580}
+                colors={colors7}
+                xPath={["50vw", "120vw", "-10vw", "80vw", "15vw", "50vw"]}
+                yPath={["-20vh", "60vh", "110vh", "10vh", "75vh", "-20vh"]}
+                scalePath={[0.9, 1.2, 0.8, 1.3, 1.0, 0.9]}
+                duration={44}
+            />
+            <FloatingBlob
+                size={450}
+                colors={colors8}
+                xPath={["-25vw", "95vw", "5vw", "115vw", "-15vw", "-25vw"]}
+                yPath={["30vh", "115vh", "-25vh", "70vh", "100vh", "30vh"]}
+                scalePath={[1.2, 0.85, 1.3, 0.9, 1.15, 1.2]}
+                duration={47}
+            />
+            <FloatingBlob
+                size={430}
+                colors={colors9}
+                xPath={["115vw", "-20vw", "70vw", "-10vw", "120vw", "115vw"]}
+                yPath={["80vh", "-15vh", "115vh", "40vh", "-25vh", "80vh"]}
+                scalePath={[0.95, 1.25, 0.8, 1.1, 1.05, 0.95]}
+                duration={39}
             />
 
             {/* Main Premium Dual-Column Auth Panel Container */}
