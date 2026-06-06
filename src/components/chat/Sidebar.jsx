@@ -3,7 +3,7 @@ import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import {
     Search, Lock, Unlock, AlignStartVertical, AlignEndVertical,
-    X, Loader2, LogOut, Bell, BellOff, BellRing, UserPlus, ChevronLeft
+    X, Loader2, LogOut, Bell, BellOff, BellRing, UserPlus
 } from "lucide-react";
 import { logo } from "@/assets/logo";
 import { isSameId, formatMessageTime } from "@/utils/chatHelpers";
@@ -128,16 +128,7 @@ export default function Sidebar({
                                 <UserPlus className="w-5 h-5" />
                             </button>
                         )}
-                        {isSettingsOpen && (
-                            <button
-                                onClick={() => setIsSettingsOpen(false)}
-                                className="p-1.5 rounded-full hover:bg-muted text-indigo-500 hover:text-indigo-600 transition-all cursor-pointer flex items-center gap-1"
-                                title="Back to Chats"
-                            >
-                                <ChevronLeft className="w-5 h-5" />
-                                {!isSidebarCollapsed && <span className="text-xs font-bold">Back</span>}
-                            </button>
-                        )}
+
                         <button
                             onClick={() => setIsSidebarCollapsed(prev => !prev)}
                             className="p-1.5 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground transition-all cursor-pointer hidden md:block"
