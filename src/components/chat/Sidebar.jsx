@@ -3,10 +3,11 @@ import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import {
     Search, Lock, Unlock, AlignStartVertical, AlignEndVertical,
-    X, Loader2, LogOut, Bell, BellOff, BellRing, UserPlus
+    X, Loader2, LogOut, Bell, BellOff, BellRing, UserPlus, ChevronLeft
 } from "lucide-react";
 import { logo } from "@/assets/logo";
 import { isSameId, formatMessageTime } from "@/utils/chatHelpers";
+import Avatar from "./Avatar";
 
 export default function Sidebar({
     currentUser,
@@ -36,7 +37,8 @@ export default function Sidebar({
     checkPrivateKey,
     setIsSettingsOpen,
     groups = [],
-    setIsCreateGroupOpen
+    setIsCreateGroupOpen,
+    isSettingsOpen
 }) {
 
     // Unified user list sorted like WhatsApp: recent conversation partners at the top, others below
@@ -95,7 +97,7 @@ export default function Sidebar({
     return (
         <div
             className={`h-full border-r border-border flex flex-col bg-card z-20 transition-all duration-300 ${
-                activeChat ? "hidden md:flex" : "flex w-full md:flex"
+                (activeChat || isSettingsOpen) ? "hidden md:flex" : "flex w-full md:flex"
             } ${isSidebarCollapsed ? "md:w-20" : "md:w-80"}`}
         >
             {/* Header */}
@@ -117,13 +119,23 @@ export default function Sidebar({
                                 <Unlock className="w-4 h-4" />
                             </button>
                         )}
-                        {!isSidebarCollapsed && (
+                        {!isSidebarCollapsed && !isSettingsOpen && (
                             <button
                                 onClick={() => setIsCreateGroupOpen(true)}
                                 className="p-1.5 rounded-full hover:bg-muted text-muted-foreground hover:text-indigo-500 transition-all cursor-pointer"
                                 title="Create Group"
                             >
                                 <UserPlus className="w-5 h-5" />
+                            </button>
+                        )}
+                        {isSettingsOpen && (
+                            <button
+                                onClick={() => setIsSettingsOpen(false)}
+                                className="p-1.5 rounded-full hover:bg-muted text-indigo-500 hover:text-indigo-600 transition-all cursor-pointer flex items-center gap-1"
+                                title="Back to Chats"
+                            >
+                                <ChevronLeft className="w-5 h-5" />
+                                {!isSidebarCollapsed && <span className="text-xs font-bold">Back</span>}
                             </button>
                         )}
                         <button
@@ -137,7 +149,7 @@ export default function Sidebar({
                 </div>
 
                 {/* Hidden Vault Unlock */}
-                {!isSidebarCollapsed && (
+                {!isSidebarCollapsed && !isSettingsOpen && (
                     <motion.div
                         animate={shakeLock ? { x: [-6, 6, -6, 6, 0] } : {}}
                         transition={{ duration: 0.3 }}
@@ -167,7 +179,7 @@ export default function Sidebar({
                 )}
 
                 {/* Search bar */}
-                {!isSidebarCollapsed && (
+                {!isSidebarCollapsed && !isSettingsOpen && (
                     <div className="relative">
                         <Search className="absolute left-3 top-2.5 w-4 h-4 text-muted-foreground" />
                         <input
@@ -191,7 +203,9 @@ export default function Sidebar({
             </div>
 
             {/* Chat / Search list */}
-            {!isSidebarCollapsed ? (
+            {isSettingsOpen ? (
+                <div className="flex-1" />
+            ) : !isSidebarCollapsed ? (
                 <div className="flex-1 overflow-y-auto p-2 space-y-1">
                     {isSearching && (
                         <div className="flex justify-center py-6">
@@ -224,13 +238,8 @@ export default function Sidebar({
                                                         : "hover:bg-muted/50"
                                             }`}
                                         >
-                                            {/* Dynamic DiceBear Profile Avatar */}
-                                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                                            <img
-                                                src={`https://api.dicebear.com/7.x/initials/svg?seed=${user.isGroup ? user.name : user.hikeId}&radius=50&backgroundType=gradientLinear`}
-                                                alt={user.isGroup ? user.name : user.hikeId}
-                                                className="w-11 h-11 rounded-full object-cover border border-border shadow-sm shrink-0"
-                                            />
+                                             {/* Dynamic Profile Avatar */}
+                                             <Avatar user={user} className="w-11 h-11" />
 
                                             {/* User Info & Last Message */}
                                             <div className="flex-1 min-w-0 overflow-hidden animate-fade-in">
@@ -301,12 +310,7 @@ export default function Sidebar({
                         className="flex items-center gap-2.5 overflow-hidden cursor-pointer shrink-0"
                         title="View Profile / Settings"
                     >
-                        <div
-                            className="w-9 h-9 rounded-full bg-linear-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white font-bold text-sm shrink-0 border border-border shadow-xs"
-                            title={isSidebarCollapsed ? "View Profile / Settings" : undefined}
-                        >
-                            {currentUser?.hikeId?.charAt(0).toUpperCase() || "?"}
-                        </div>
+                        <Avatar user={currentUser} className="w-9 h-9 border border-border shadow-xs" />
                         {!isSidebarCollapsed && (
                             <div className="flex flex-col overflow-hidden max-w-[170px] animate-fade-in">
                                 <span className="text-sm font-semibold text-foreground truncate">

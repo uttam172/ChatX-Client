@@ -2,6 +2,7 @@ import React from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronLeft, Phone, Video, MoreVertical, Trash, Unlock, Lock, ShieldCheck } from "lucide-react";
 import { isSameId } from "@/utils/chatHelpers";
+import Avatar from "./Avatar";
 
 export default function ChatHeader({
     activeChat,
@@ -34,7 +35,7 @@ export default function ChatHeader({
                         e.stopPropagation();
                         setActiveChat(null);
                     }}
-                    className="md:hidden p-1.5 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground transition-colors mr-1 cursor-pointer"
+                    className="p-1.5 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground transition-colors mr-1 cursor-pointer"
                     title="Back to Chats"
                 >
                     <ChevronLeft className="w-6 h-6" />
@@ -45,9 +46,7 @@ export default function ChatHeader({
                     className="flex items-center gap-3 cursor-pointer select-none hover:opacity-85 active:scale-98 transition-all duration-150"
                     title={activeChat.isGroup ? "View Group Details" : "View User Details"}
                 >
-                    <div className="w-10 h-10 rounded-full bg-linear-to-br from-indigo-400 to-purple-500 flex items-center justify-center text-white font-bold shrink-0 shadow-xs border border-border/40">
-                        {(activeChat.isGroup ? activeChat.name : activeChat.hikeId).charAt(0).toUpperCase()}
-                    </div>
+                    <Avatar user={activeChat} className="w-10 h-10 border border-border/40" />
                     <div>
                         <h2 className="font-semibold text-foreground leading-tight hover:text-indigo-500 transition-colors">
                             {activeChat.isGroup ? activeChat.name : activeChat.hikeId}

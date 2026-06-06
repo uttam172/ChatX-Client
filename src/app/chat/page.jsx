@@ -22,7 +22,7 @@ import Sidebar from "@/components/chat/Sidebar";
 import ChatArea from "@/components/chat/ChatArea";
 
 // Modals
-import SettingsModal from "@/components/chat/modals/SettingsModal";
+import SettingsPage from "@/components/chat/SettingsPage";
 import CallOverlay from "@/components/chat/modals/CallOverlay";
 import E2EEInfoModal from "@/components/chat/modals/E2EEInfoModal";
 import EmojiPickerModal from "@/components/chat/modals/EmojiPickerModal";
@@ -1929,76 +1929,78 @@ export default function ChatPage() {
                 setIsSettingsOpen={setIsSettingsOpen}
                 groups={groups}
                 setIsCreateGroupOpen={setIsCreateGroupOpen}
+                isSettingsOpen={isSettingsOpen}
             />
 
             {/* Main Chat Area */}
-            <ChatArea
-                activeChat={activeChat}
-                setActiveChat={setActiveChat}
-                currentUser={currentUser}
-                messages={messages}
-                onViewDetails={() => setIsChatDetailsOpen(true)}
-                typingUsers={typingUsers}
-                onlineStatuses={onlineStatuses}
-                startCall={startCall}
-                isMenuOpen={isMenuOpen}
-                setIsMenuOpen={setIsMenuOpen}
-                handleClearChat={handleClearChat}
-                handleToggleHideChat={handleToggleHideChat}
-                chatSettings={chatSettings}
-                setIsE2EEInfoOpen={setIsE2EEInfoOpen}
-                hasPrivateKey={hasPrivateKey}
-                handleRestorePrivateKey={handleRestorePrivateKey}
-                setIsSettingsOpen={setIsSettingsOpen}
-                firstUnreadMessageId={firstUnreadMessageId}
-                lastSeenMyMessageIndex={lastSeenMyMessageIndex}
-                hoveredMessageId={hoveredMessageId}
-                activeMessageReactionId={activeMessageReactionId}
-                setActiveMessageReactionId={setActiveMessageReactionId}
-                setExpandedMessageReactionId={setExpandedMessageReactionId}
-                setActiveReactionTab={setActiveReactionTab}
-                replyingToMessage={replyingToMessage}
-                setReplyingToMessage={setReplyingToMessage}
-                editingMessage={editingMessage}
-                setEditingMessage={setEditingMessage}
-                messageInput={messageInput}
-                setMessageInput={setMessageInput}
-                messageInputRef={messageInputRef}
-                isSending={isSending}
-                isUploading={isUploading}
-                uploadStatus={uploadStatus}
-                pendingFile={pendingFile}
-                setPendingFile={setPendingFile}
-                pendingFilePreview={pendingFilePreview}
-                setPendingFilePreview={setPendingFilePreview}
-                fileInputRef={fileInputRef}
-                handleFileChange={handleFileChange}
-                handlePaste={handlePaste}
-                sendMessage={sendMessage}
-                sendNudge={sendNudge}
-                nudgeShake={nudgeShake}
-                isDraggingFile={isDraggingFile}
-                handleDragOver={handleDragOver}
-                handleDragLeave={handleDragLeave}
-                handleDrop={handleDrop}
-                setActiveLightboxImage={setActiveLightboxImage}
-                messagesEndRef={messagesEndRef}
-                handleMessageMouseEnter={handleMessageMouseEnter}
-                handleMessageMouseLeave={handleMessageMouseLeave}
-            />
+            {isSettingsOpen ? (
+                <SettingsPage
+                    currentUser={currentUser}
+                    setCurrentUser={setCurrentUser}
+                    hasPrivateKey={hasPrivateKey}
+                    handleRestorePrivateKey={handleRestorePrivateKey}
+                    handleRegenerateKeys={handleRegenerateKeys}
+                    onClose={() => setIsSettingsOpen(false)}
+                    socket={getSocket()}
+                />
+            ) : (
+                <ChatArea
+                    activeChat={activeChat}
+                    setActiveChat={setActiveChat}
+                    currentUser={currentUser}
+                    messages={messages}
+                    onViewDetails={() => setIsChatDetailsOpen(true)}
+                    typingUsers={typingUsers}
+                    onlineStatuses={onlineStatuses}
+                    startCall={startCall}
+                    isMenuOpen={isMenuOpen}
+                    setIsMenuOpen={setIsMenuOpen}
+                    handleClearChat={handleClearChat}
+                    handleToggleHideChat={handleToggleHideChat}
+                    chatSettings={chatSettings}
+                    setIsE2EEInfoOpen={setIsE2EEInfoOpen}
+                    hasPrivateKey={hasPrivateKey}
+                    handleRestorePrivateKey={handleRestorePrivateKey}
+                    setIsSettingsOpen={setIsSettingsOpen}
+                    firstUnreadMessageId={firstUnreadMessageId}
+                    lastSeenMyMessageIndex={lastSeenMyMessageIndex}
+                    hoveredMessageId={hoveredMessageId}
+                    activeMessageReactionId={activeMessageReactionId}
+                    setActiveMessageReactionId={setActiveMessageReactionId}
+                    setExpandedMessageReactionId={setExpandedMessageReactionId}
+                    setActiveReactionTab={setActiveReactionTab}
+                    replyingToMessage={replyingToMessage}
+                    setReplyingToMessage={setReplyingToMessage}
+                    editingMessage={editingMessage}
+                    setEditingMessage={setEditingMessage}
+                    messageInput={messageInput}
+                    setMessageInput={setMessageInput}
+                    messageInputRef={messageInputRef}
+                    isSending={isSending}
+                    isUploading={isUploading}
+                    uploadStatus={uploadStatus}
+                    pendingFile={pendingFile}
+                    setPendingFile={setPendingFile}
+                    pendingFilePreview={pendingFilePreview}
+                    setPendingFilePreview={setPendingFilePreview}
+                    fileInputRef={fileInputRef}
+                    handleFileChange={handleFileChange}
+                    handlePaste={handlePaste}
+                    sendMessage={sendMessage}
+                    sendNudge={sendNudge}
+                    nudgeShake={nudgeShake}
+                    isDraggingFile={isDraggingFile}
+                    handleDragOver={handleDragOver}
+                    handleDragLeave={handleDragLeave}
+                    handleDrop={handleDrop}
+                    setActiveLightboxImage={setActiveLightboxImage}
+                    messagesEndRef={messagesEndRef}
+                    handleMessageMouseEnter={handleMessageMouseEnter}
+                    handleMessageMouseLeave={handleMessageMouseLeave}
+                />
+            )}
 
-            {/* Modals & Overlays */}
-            <AnimatePresence>
-                {isSettingsOpen && (
-                    <SettingsModal
-                        currentUser={currentUser}
-                        hasPrivateKey={hasPrivateKey}
-                        handleRestorePrivateKey={handleRestorePrivateKey}
-                        handleRegenerateKeys={handleRegenerateKeys}
-                        setIsSettingsOpen={setIsSettingsOpen}
-                    />
-                )}
-            </AnimatePresence>
+
 
             <AnimatePresence>
                 {callStatus !== "disconnected" && (

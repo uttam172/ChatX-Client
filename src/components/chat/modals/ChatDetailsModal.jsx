@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect } from "react";
 import { motion } from "framer-motion";
 import { X, Search, Check, Edit2, Copy, Shield, Users, User, Clock, Mail, Info } from "lucide-react";
 import { isSameId } from "@/utils/chatHelpers";
+import Avatar from "../Avatar";
 
 export default function ChatDetailsModal({
     activeChat,
@@ -121,11 +122,7 @@ export default function ChatDetailsModal({
                     <div className="p-6 flex flex-col items-center gap-5">
                         {/* Avatar */}
                         <div className="relative">
-                            <img
-                                src={`https://api.dicebear.com/7.x/initials/svg?seed=${activeChat.hikeId}&radius=50&backgroundType=gradientLinear`}
-                                alt={activeChat.hikeId}
-                                className="w-20 h-20 rounded-full border border-border shadow-md"
-                            />
+                            <Avatar user={activeChat} className="w-20 h-20 shadow-md" />
                             {isOnline && (
                                 <span className="absolute bottom-0 right-1 w-4 h-4 rounded-full bg-emerald-500 border-2 border-card" />
                             )}
@@ -289,11 +286,7 @@ export default function ChatDetailsModal({
                                                 >
                                                     <div className="flex items-center gap-2.5 min-w-0">
                                                         {/* eslint-disable-next-line @next/next/no-img-element */}
-                                                        <img
-                                                            src={`https://api.dicebear.com/7.x/initials/svg?seed=${user.hikeId}&radius=50&backgroundType=gradientLinear`}
-                                                            alt={user.hikeId}
-                                                            className="w-8 h-8 rounded-full border border-border shadow-xs shrink-0"
-                                                        />
+                                                        <Avatar user={user} className="w-8 h-8" />
                                                         <span className="text-sm font-medium text-foreground truncate">
                                                             {user.hikeId} {isCreator && <span className="text-[10px] bg-indigo-500 text-white font-bold px-1.5 py-0.5 rounded-full ml-1 uppercase">Admin</span>}
                                                         </span>
@@ -351,11 +344,7 @@ export default function ChatDetailsModal({
                         <div className="flex-1 flex flex-col overflow-hidden p-6 space-y-6">
                             {/* Avatar and Group Name */}
                             <div className="flex flex-col items-center gap-3">
-                                <img
-                                    src={`https://api.dicebear.com/7.x/initials/svg?seed=${activeChat.name}&radius=50&backgroundType=gradientLinear`}
-                                    alt={activeChat.name}
-                                    className="w-20 h-20 rounded-full border border-border shadow-md"
-                                />
+                                <Avatar user={activeChat} className="w-20 h-20 shadow-md" />
                                 <div className="text-center">
                                     <h4 className="text-xl font-bold text-foreground">{activeChat.name}</h4>
                                     <p className="text-xs text-muted-foreground mt-1">Group • {activeChat.members?.length || 0} members</p>
@@ -385,11 +374,7 @@ export default function ChatDetailsModal({
                                                 className="flex items-center justify-between p-2 rounded-lg hover:bg-muted/50 transition-colors"
                                             >
                                                 <div className="flex items-center gap-2.5 min-w-0">
-                                                    <img
-                                                        src={`https://api.dicebear.com/7.x/initials/svg?seed=${member.hikeId}&radius=50&backgroundType=gradientLinear`}
-                                                        alt={member.hikeId}
-                                                        className="w-8 h-8 rounded-full border border-border shadow-xs shrink-0"
-                                                    />
+                                                    <Avatar user={member} className="w-8 h-8" />
                                                     <span className="text-sm font-medium text-foreground truncate">
                                                         {member.hikeId}
                                                     </span>

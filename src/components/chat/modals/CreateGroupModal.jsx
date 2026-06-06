@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from "react";
 import { motion } from "framer-motion";
 import { Users, X, Search, Check } from "lucide-react";
-
+import Avatar from "../Avatar";
 export default function CreateGroupModal({
     allUsers,
     currentUser,
@@ -140,12 +140,7 @@ export default function CreateGroupModal({
                                             }`}
                                         >
                                             <div className="flex items-center gap-2.5 min-w-0">
-                                                {/* eslint-disable-next-line @next/next/no-img-element */}
-                                                <img
-                                                    src={`https://api.dicebear.com/7.x/initials/svg?seed=${user.hikeId}&radius=50&backgroundType=gradientLinear`}
-                                                    alt={user.hikeId}
-                                                    className="w-8 h-8 rounded-full border border-border shadow-xs shrink-0"
-                                                />
+                                                <Avatar user={user} className="w-8 h-8" />
                                                 <span className="text-sm font-medium text-foreground truncate">
                                                     {user.hikeId}
                                                 </span>

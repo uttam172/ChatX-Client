@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Lock, Zap } from "lucide-react";
 import { isSameId, formatDividerDate } from "@/utils/chatHelpers";
 import MessageBubble from "./MessageBubble";
+import Avatar from "./Avatar";
 
 export default function MessageList({
     messages,
@@ -150,11 +151,10 @@ export default function MessageList({
                                     className="flex items-center gap-0.5 select-none self-end pr-2.5 -mt-2 mb-1"
                                 >
                                     {groupLastReadUsers[idx].map((u) => (
-                                        <img
+                                        <Avatar
                                             key={u._id}
-                                            src={`https://api.dicebear.com/7.x/initials/svg?seed=${u.hikeId}&radius=50&backgroundType=gradientLinear`}
-                                            alt={u.hikeId}
-                                            className="w-4 h-4 rounded-full border border-border shadow-xs shrink-0"
+                                            user={u}
+                                            className="w-4 h-4 border border-border shadow-xs shrink-0"
                                             title={`Seen by @${u.hikeId}`}
                                         />
                                     ))}
