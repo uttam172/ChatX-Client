@@ -476,7 +476,7 @@ export default function SettingsPage({
                         </motion.div>
 
                         {/* Preview Profile Card */}
-                        <div className="bg-muted/40 border border-border rounded-xl p-4 flex items-center gap-4">
+                        <div className="p-2 flex items-center gap-4">
                             <Avatar user={currentAvatarPreviewData} className="w-16 h-16 border-2 border-indigo-500" />
                             <div>
                                 <span className="text-xs font-semibold bg-indigo-500/10 text-indigo-500 border border-indigo-500/20 px-2 py-0.5 rounded-full">@{hikeId || "username"}</span>
@@ -577,8 +577,7 @@ export default function SettingsPage({
                         </motion.div>
 
                         {/* Live Preview Display */}
-                        <div className="flex flex-col md:flex-row items-center justify-center p-6 bg-muted/30 border border-border rounded-2xl relative overflow-hidden gap-6">
-                            <div className="absolute inset-0 bg-linear-to-br from-indigo-500/5 to-purple-500/5 pointer-events-none" />
+                        <div className="flex flex-col md:flex-row items-center justify-center p-4 gap-6">
                             
                             {/* Avatar Icon and Name */}
                             <div className="flex flex-col items-center shrink-0 relative z-10 text-center">
@@ -591,7 +590,6 @@ export default function SettingsPage({
                                     )}
                                 </div>
                                 <span className="text-xs font-bold text-foreground mt-2">@{hikeId || currentUser?.hikeId}</span>
-                                <p className="text-[9px] text-muted-foreground mt-0.5">Live Preview</p>
                             </div>
 
                             {/* Side-by-Side Seed Key Customization (Only in DiceBear mode) */}
@@ -712,38 +710,40 @@ export default function SettingsPage({
                                      {/* Style Library Preview Grid */}
                                      <div className="space-y-2.5">
                                          <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block">Select Avatar Style</label>
-                                         <div className="grid grid-cols-3 sm:grid-cols-5 md:grid-cols-9 gap-2.5">
+                                         <div className="grid grid-cols-3 sm:grid-cols-5 md:grid-cols-9 gap-x-2.5 gap-y-5">
                                              {AVATAR_STYLES.map((style) => {
                                                  const isSelected = avatarStyle === style.value;
                                                  const previewUrl = `https://api.dicebear.com/7.x/${style.value}/svg?seed=${encodeURIComponent(avatarSeed || hikeId || "seed")}&radius=50&backgroundType=gradientLinear`;
 
                                                  return (
-                                                     <motion.div
-                                                         key={style.value}
-                                                         whileHover={{ scale: 1.05 }}
-                                                         whileTap={{ scale: 0.95 }}
-                                                         onClick={() => {
-                                                             setAvatarStyle(style.value);
-                                                             handleSaveAvatar({
-                                                                 profilePicture: "",
-                                                                 avatarStyle: style.value,
-                                                                 avatarSeed: avatarSeed || hikeId || "seed"
-                                                             });
-                                                         }}
-                                                         className={`p-3 rounded-xl border transition-all duration-200 cursor-pointer flex flex-col items-center gap-2 text-center bg-card ${
-                                                             isSelected 
-                                                                 ? "border-indigo-500 bg-indigo-500/5 ring-2 ring-indigo-500/20" 
-                                                                 : "border-border hover:border-indigo-500/40 hover:bg-muted/40"
-                                                         }`}
-                                                     >
-                                                         {/* eslint-disable-next-line @next/next/no-img-element */}
-                                                         <img
-                                                             src={previewUrl}
-                                                             alt={style.label}
-                                                             className="w-12 h-12 rounded-full object-cover border border-border shadow-xs shrink-0"
-                                                         />
-                                                         <span className="text-[10px] font-bold text-foreground leading-tight">{style.label}</span>
-                                                     </motion.div>
+                                                      <motion.div
+                                                          key={style.value}
+                                                          whileHover={{ scale: 1.08 }}
+                                                          whileTap={{ scale: 0.92 }}
+                                                          onClick={() => {
+                                                              setAvatarStyle(style.value);
+                                                              handleSaveAvatar({
+                                                                  profilePicture: "",
+                                                                  avatarStyle: style.value,
+                                                                  avatarSeed: avatarSeed || hikeId || "seed"
+                                                              });
+                                                          }}
+                                                          className="cursor-pointer flex flex-col items-center gap-1.5 text-center"
+                                                      >
+                                                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                          <img
+                                                              src={previewUrl}
+                                                              alt={style.label}
+                                                              className={`w-14 h-14 rounded-full object-cover transition-all duration-200 ${
+                                                                  isSelected 
+                                                                      ? "ring-2 ring-indigo-500 ring-offset-2 ring-offset-background scale-105" 
+                                                                      : "border border-border hover:scale-105"
+                                                              }`}
+                                                          />
+                                                          <span className={`text-[10px] font-bold leading-tight transition-colors ${
+                                                              isSelected ? "text-indigo-500" : "text-muted-foreground"
+                                                          }`}>{style.label}</span>
+                                                      </motion.div>
                                                  );
                                              })}
                                          </div>
