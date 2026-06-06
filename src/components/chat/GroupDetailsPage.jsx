@@ -71,26 +71,62 @@ export default function GroupDetailsPage({
         return `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(groupName || "Group")}&radius=50&backgroundType=gradientLinear`;
     }, [avatarMode, profilePicture, avatarStyle, avatarSeed, groupName]);
 
-    // Filtered users for admin to add
+    // Filtered users for admin to add (exclude current group members and pending additions)
     const nonMembers = useMemo(() => {
         const query = searchQuery.toLowerCase().replace(/^@/, "");
+        const persistedIds = (activeChat?.members || []).map(m => m._id);
         return allUsers.filter(u => 
             !selectedUsers.includes(u._id) && 
+            !persistedIds.some(id => isSameId(id, u._id)) &&
             !isSameId(u._id, currentUser) &&
             (query ? u.hikeId.toLowerCase().includes(query) : true)
         );
-    }, [allUsers, selectedUsers, currentUser, searchQuery]);
+    }, [allUsers, selectedUsers, activeChat, currentUser, searchQuery]);
 
-    // Resolve current members details
+    // Resolve current members details (already saved, not pending) from selectedUsers state
     const currentMembersDetails = useMemo(() => {
-        return (activeChat?.members || []).map(member => {
-            const isCreator = isSameId(member._id, activeChat.createdBy);
+        const persistedMemberIds = (activeChat?.members || []).map(m => m._id);
+        const remainingIds = selectedUsers.filter(id => persistedMemberIds.includes(id));
+
+        return remainingIds.map(memberId => {
+            const memberObj = (activeChat?.members || []).find(m => isSameId(m._id, memberId))
+                || allUsers.find(u => isSameId(u._id, memberId))
+                || (isSameId(currentUser, memberId) ? currentUser : null)
+                || { _id: memberId, hikeId: "Loading..." };
+
+            const isCreator = isSameId(memberId, activeChat?.createdBy);
             return {
-                ...member,
+                ...memberObj,
                 isCreator
             };
         }).sort((a, b) => (b.isCreator ? 1 : 0) - (a.isCreator ? 1 : 0));
-    }, [activeChat]);
+    }, [selectedUsers, activeChat, allUsers, currentUser]);
+
+    // Resolve pending member additions
+    const pendingAdditionsDetails = useMemo(() => {
+        const persistedMemberIds = (activeChat?.members || []).map(m => m._id);
+        const pendingIds = selectedUsers.filter(id => !persistedMemberIds.includes(id));
+
+        return pendingIds.map(memberId => {
+            const memberObj = allUsers.find(u => isSameId(u._id, memberId))
+                || (isSameId(currentUser, memberId) ? currentUser : null)
+                || { _id: memberId, hikeId: "Loading..." };
+            return memberObj;
+        });
+    }, [selectedUsers, activeChat, allUsers, currentUser]);
+
+    // Resolve pending member removals (persisted in database but removed in UI selection)
+    const pendingRemovalsDetails = useMemo(() => {
+        const persistedMembers = activeChat?.members || [];
+        return persistedMembers.filter(member => !selectedUsers.includes(member._id))
+            .map(member => {
+                const isCreator = isSameId(member._id, activeChat?.createdBy);
+                return {
+                    ...member,
+                    isCreator
+                };
+            });
+    }, [selectedUsers, activeChat]);
 
     const handleRandomizeSeed = () => {
         const adjectives = ["Cool", "Epic", "Happy", "Secure", "Cyber", "Web", "Dev", "Pro", "Tech", "Elite", "Team", "Nexus"];
@@ -573,44 +609,124 @@ export default function GroupDetailsPage({
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
                     {/* Current Members List */}
-                    <div className="space-y-2 w-full">
-                        <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Current Members</label>
-                        <div className="border border-border rounded-2xl bg-muted/10 p-3.5 space-y-1.5 max-h-60 overflow-y-auto">
-                            {currentMembersDetails.map((member) => {
-                                const isCreator = member.isCreator;
-                                return (
-                                    <div
-                                        key={member._id}
-                                        className="flex items-center justify-between p-2 rounded-xl hover:bg-muted/50 transition-colors"
-                                    >
-                                        <div className="flex items-center gap-3 min-w-0">
-                                            <Avatar user={member} className="w-8 h-8" />
-                                            <span className="text-xs font-semibold text-foreground truncate">
-                                                @{member.hikeId}
-                                            </span>
-                                        </div>
-                                        {isCreator ? (
-                                            <span className="text-[9px] bg-indigo-500/10 text-indigo-500 font-bold border border-indigo-500/20 px-2 py-0.5 rounded-full uppercase shrink-0">
-                                                Admin
-                                            </span>
-                                        ) : isAdmin ? (
+                    <div className="space-y-4 w-full flex flex-col">
+                        <div className="space-y-2">
+                            <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Current Members</label>
+                            <div className="border border-border rounded-2xl bg-muted/10 p-3.5 space-y-1.5 max-h-60 overflow-y-auto">
+                                {currentMembersDetails.length > 0 ? (
+                                    currentMembersDetails.map((member) => {
+                                        const isCreator = member.isCreator;
+                                        return (
+                                            <div
+                                                key={member._id}
+                                                className="flex items-center justify-between p-2 rounded-xl hover:bg-muted/50 transition-colors"
+                                            >
+                                                <div className="flex items-center gap-3 min-w-0">
+                                                    <Avatar user={member} className="w-8 h-8" />
+                                                    <span className="text-xs font-semibold text-foreground truncate">
+                                                        @{member.hikeId}
+                                                    </span>
+                                                </div>
+                                                {isCreator ? (
+                                                    <span className="text-[9px] bg-indigo-500/10 text-indigo-500 font-bold border border-indigo-500/20 px-2 py-0.5 rounded-full uppercase shrink-0">
+                                                        Admin
+                                                    </span>
+                                                ) : isAdmin ? (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleRemoveMember(member._id)}
+                                                        className="p-1 rounded-full text-rose-500 hover:bg-rose-500/10 transition-colors cursor-pointer border border-transparent hover:border-rose-500/10"
+                                                        title="Staged member removal"
+                                                    >
+                                                        <Trash2 className="w-4 h-4" />
+                                                    </button>
+                                                ) : (
+                                                    <span className="text-[9px] bg-muted text-muted-foreground border border-border px-2 py-0.5 rounded-full uppercase shrink-0 font-medium">
+                                                        Member
+                                                    </span>
+                                                )}
+                                            </div>
+                                        );
+                                    })
+                                ) : (
+                                    <div className="text-center text-[11px] text-muted-foreground py-6 font-medium">
+                                        No members in group
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Pending Additions Section */}
+                        {isAdmin && pendingAdditionsDetails.length > 0 && (
+                            <div className="space-y-2 animate-fade-in">
+                                <label className="text-[11px] font-bold text-emerald-500 uppercase tracking-wider flex items-center gap-1.5">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                                    Pending Additions ({pendingAdditionsDetails.length})
+                                </label>
+                                <div className="border border-emerald-500/20 rounded-2xl bg-emerald-500/5 p-3.5 space-y-1.5 max-h-48 overflow-y-auto">
+                                    {pendingAdditionsDetails.map((member) => (
+                                        <div
+                                            key={member._id}
+                                            className="flex items-center justify-between p-2 rounded-xl hover:bg-emerald-500/10 transition-colors"
+                                        >
+                                            <div className="flex items-center gap-3 min-w-0">
+                                                <Avatar user={member} className="w-8 h-8" />
+                                                <span className="text-xs font-semibold text-foreground truncate">
+                                                    @{member.hikeId}
+                                                </span>
+                                                <span className="text-[9px] bg-emerald-500/10 text-emerald-500 font-bold border border-emerald-500/20 px-1.5 py-0.5 rounded-full uppercase shrink-0">
+                                                    Pending
+                                                </span>
+                                            </div>
                                             <button
                                                 type="button"
                                                 onClick={() => handleRemoveMember(member._id)}
-                                                className="p-1 rounded-full text-rose-500 hover:bg-rose-500/10 transition-colors cursor-pointer border border-transparent hover:border-rose-500/10"
-                                                title="Remove from group"
+                                                className="p-1 rounded-full text-muted-foreground hover:text-rose-500 hover:bg-rose-500/10 transition-colors cursor-pointer border border-transparent"
+                                                title="Cancel addition"
                                             >
                                                 <Trash2 className="w-4 h-4" />
                                             </button>
-                                        ) : (
-                                            <span className="text-[9px] bg-muted text-muted-foreground border border-border px-2 py-0.5 rounded-full uppercase shrink-0 font-medium">
-                                                Member
-                                            </span>
-                                        )}
-                                    </div>
-                                );
-                            })}
-                        </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Pending Removals Section */}
+                        {isAdmin && pendingRemovalsDetails.length > 0 && (
+                            <div className="space-y-2 animate-fade-in">
+                                <label className="text-[11px] font-bold text-rose-500 uppercase tracking-wider flex items-center gap-1.5">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse"></span>
+                                    Pending Removals ({pendingRemovalsDetails.length})
+                                </label>
+                                <div className="border border-rose-500/20 rounded-2xl bg-rose-500/5 p-3.5 space-y-1.5 max-h-48 overflow-y-auto">
+                                    {pendingRemovalsDetails.map((member) => (
+                                        <div
+                                            key={member._id}
+                                            className="flex items-center justify-between p-2 rounded-xl hover:bg-rose-500/10 transition-colors"
+                                        >
+                                            <div className="flex items-center gap-3 min-w-0">
+                                                <Avatar user={member} className="w-8 h-8" />
+                                                <span className="text-xs font-semibold text-foreground truncate">
+                                                    @{member.hikeId}
+                                                </span>
+                                                <span className="text-[9px] bg-rose-500/10 text-rose-500 font-bold border border-rose-500/20 px-1.5 py-0.5 rounded-full uppercase shrink-0">
+                                                    Removing
+                                                </span>
+                                            </div>
+                                            <button
+                                                type="button"
+                                                onClick={() => handleAddMember(member._id)}
+                                                className="p-1 rounded-full text-muted-foreground hover:text-emerald-500 hover:bg-emerald-500/10 transition-colors cursor-pointer border border-transparent"
+                                                title="Cancel removal"
+                                            >
+                                                <Plus className="w-4 h-4" />
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
                     </div>
 
                     {/* Add New Members (Admin only) */}

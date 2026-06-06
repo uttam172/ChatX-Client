@@ -185,3 +185,14 @@ body.theme-transition-active {
     transform-origin: center center;
     overflow-x: hidden; /* Avoid horizontal scroll jumps during scale fallback */
 }
+
+/* Shake animation for Nudge */
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    10%, 30%, 50%, 70%, 90% { transform: translateX(-15px); }
+    20%, 40%, 60%, 80% { transform: translateX(15px); }
+}
+
+.animate-shake {
+    animation: shake 0.5s ease-in-out;
+}

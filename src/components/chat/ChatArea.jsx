@@ -62,14 +62,12 @@ export default function ChatArea({
 }) {
     return (
         <motion.div
-            animate={nudgeShake ? { x: [-15, 15, -15, 15, -8, 8, -4, 4, 0] } : {}}
-            transition={{ duration: 0.5 }}
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
             className={`flex-1 flex flex-col relative transition-all duration-300 ${
                 activeChat ? "flex w-full" : "hidden md:flex"
-            }`}
+            } ${nudgeShake ? "animate-shake" : ""}`}
             style={{ background: "linear-gradient(135deg, var(--color-background), var(--color-muted))" }}
         >
             {/* Drag and Drop Blur Dropzone Overlay */}
