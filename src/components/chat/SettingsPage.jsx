@@ -53,6 +53,59 @@ export default function SettingsPage({
         setMounted(true);
     }, []);
 
+    const handleThemeChange = (newTheme, event) => {
+        const isAppearanceTransition =
+            typeof document !== "undefined" &&
+            document.startViewTransition &&
+            !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+        if (!isAppearanceTransition) {
+            if (typeof window !== "undefined") {
+                document.documentElement.classList.add("theme-transitioning");
+                document.body.classList.remove("theme-transition-active");
+                // Trigger reflow to restart animation
+                void document.body.offsetWidth;
+                document.body.classList.add("theme-transition-active");
+                
+                setTimeout(() => {
+                    document.body.classList.remove("theme-transition-active");
+                    document.documentElement.classList.remove("theme-transitioning");
+                }, 500);
+            }
+            setTheme(newTheme);
+            return;
+        }
+
+        // Get coordinates from click event or center of screen
+        const x = event ? event.clientX : window.innerWidth / 2;
+        const y = event ? event.clientY : window.innerHeight / 2;
+        const endRadius = Math.hypot(
+            Math.max(x, window.innerWidth - x),
+            Math.max(y, window.innerHeight - y)
+        );
+
+        const transition = document.startViewTransition(() => {
+            setTheme(newTheme);
+        });
+
+        transition.ready.then(() => {
+            const clipPath = [
+                `circle(0px at ${x}px ${y}px)`,
+                `circle(${endRadius}px at ${x}px ${y}px)`
+            ];
+            document.documentElement.animate(
+                {
+                    clipPath: clipPath
+                },
+                {
+                    duration: 500,
+                    easing: "cubic-bezier(0.4, 0, 0.2, 1)",
+                    pseudoElement: "::view-transition-new(root)"
+                }
+            );
+        });
+    };
+
     const [hikeId, setHikeId] = useState("");
     const [email, setEmail] = useState("");
     const [bio, setBio] = useState("");
@@ -795,7 +848,7 @@ export default function SettingsPage({
                             <motion.div
                                 whileHover={{ scale: 1.02 }}
                                 whileTap={{ scale: 0.98 }}
-                                onClick={() => setTheme("light")}
+                                onClick={(e) => handleThemeChange("light", e)}
                                 className={`p-5 rounded-2xl border transition-all cursor-pointer flex flex-col items-center justify-between text-center gap-4 bg-card ${
                                     (mounted ? theme : "system") === "light" 
                                         ? "border-violet-500 ring-2 ring-violet-500/15" 
@@ -821,7 +874,7 @@ export default function SettingsPage({
                             <motion.div
                                 whileHover={{ scale: 1.02 }}
                                 whileTap={{ scale: 0.98 }}
-                                onClick={() => setTheme("dark")}
+                                onClick={(e) => handleThemeChange("dark", e)}
                                 className={`p-5 rounded-2xl border transition-all cursor-pointer flex flex-col items-center justify-between text-center gap-4 bg-card ${
                                     (mounted ? theme : "system") === "dark" 
                                         ? "border-violet-500 ring-2 ring-violet-500/15" 
@@ -847,7 +900,7 @@ export default function SettingsPage({
                             <motion.div
                                 whileHover={{ scale: 1.02 }}
                                 whileTap={{ scale: 0.98 }}
-                                onClick={() => setTheme("system")}
+                                onClick={(e) => handleThemeChange("system", e)}
                                 className={`p-5 rounded-2xl border transition-all cursor-pointer flex flex-col items-center justify-between text-center gap-4 bg-card ${
                                     (mounted ? theme : "system") === "system" 
                                         ? "border-violet-500 ring-2 ring-violet-500/15" 

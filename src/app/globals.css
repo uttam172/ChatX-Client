@@ -138,3 +138,50 @@ body {
 ::-webkit-scrollbar-thumb:hover {
     background-color: color-mix(in srgb, var(--color-muted-foreground) 50%, transparent);
 }
+
+/* ─────────────────────────────────────────────────────────
+   View Transitions API (Circular Sweep Theme Transition)
+   ───────────────────────────────────────────────────────── */
+::view-transition-old(root),
+::view-transition-new(root) {
+    animation: none;
+    mix-blend-mode: normal;
+}
+
+::view-transition-old(root) {
+    z-index: 1;
+}
+
+::view-transition-new(root) {
+    z-index: 9999;
+}
+
+/* ─────────────────────────────────────────────────────────
+   Fallback Transition (Used when View Transitions are unsupported)
+   ───────────────────────────────────────────────────────── */
+.theme-transitioning,
+.theme-transitioning * {
+    transition: background-color 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+                color 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+                border-color 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+                box-shadow 0.4s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+@keyframes theme-flash {
+    0% {
+        opacity: 0.96;
+        transform: scale(0.998);
+        filter: contrast(1.01) brightness(1.01);
+    }
+    100% {
+        opacity: 1;
+        transform: scale(1);
+        filter: contrast(1) brightness(1);
+    }
+}
+
+body.theme-transition-active {
+    animation: theme-flash 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    transform-origin: center center;
+    overflow-x: hidden; /* Avoid horizontal scroll jumps during scale fallback */
+}
