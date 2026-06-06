@@ -4,7 +4,6 @@ import { Users, X, Search, Check } from "lucide-react";
 import Avatar from "../Avatar";
 export default function CreateGroupModal({
     allUsers,
-    currentUser,
     isOpen,
     onClose,
     onCreateGroup

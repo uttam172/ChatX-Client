@@ -132,8 +132,8 @@ export const verifyKeyPair = async (publicKeyBase64, privateKey) => {
 
         const decoded = new TextDecoder().decode(decrypted);
         return decoded === "key-verification-probe";
-    } catch (err) {
-        console.warn("Key pair mismatch verification failed:", err);
+    } catch {
+        console.warn("Key pair mismatch verification failed");
         return false;
     }
 };

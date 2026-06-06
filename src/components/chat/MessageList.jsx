@@ -93,11 +93,11 @@ export default function MessageList({
 
                             {isFirstUnread && (
                                 <div className="col-span-full flex items-center justify-center my-6">
-                                    <div className="grow border border-amber-100/50"/>
-                                    <span className="mx-4 text-xs font-semibold text-amber-100 tracking-wider uppercase bg-rose-500/10 px-3.5 py-1.5 rounded-full shadow-sm border border-rose-500/20">
+                                    <div className="grow border-t border-rose-500/20 dark:border-rose-500/30"/>
+                                    <span className="mx-4 text-xs font-semibold text-rose-600 dark:text-rose-300 tracking-wider uppercase bg-rose-500/10 px-3.5 py-1.5 rounded-full shadow-xs border border-rose-500/20">
                                         New Messages
                                     </span>
-                                    <div className="grow border-t border-amber-100/50"/>
+                                    <div className="grow border-t border-rose-500/20 dark:border-rose-500/30"/>
                                 </div>
                             )}
 

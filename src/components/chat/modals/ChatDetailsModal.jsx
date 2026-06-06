@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo } from "react";
 import { motion } from "framer-motion";
 import { X, Search, Check, Edit2, Copy, Shield, Users, User, Clock, Mail, Info } from "lucide-react";
 import { isSameId } from "@/utils/chatHelpers";
@@ -15,26 +15,14 @@ export default function ChatDetailsModal({
     onUpdateGroup
 }) {
     const [isEditing, setIsEditing] = useState(false);
-    const [groupName, setGroupName] = useState("");
-    const [selectedUsers, setSelectedUsers] = useState([]);
+    const [groupName, setGroupName] = useState(() => activeChat?.isGroup ? (activeChat.name || "") : "");
+    const [selectedUsers, setSelectedUsers] = useState(() => activeChat?.isGroup ? (activeChat.members || []).map(m => m._id) : []);
     const [searchQuery, setSearchQuery] = useState("");
     const [isSaving, setIsSaving] = useState(false);
     const [error, setError] = useState("");
     const [copied, setCopied] = useState(false);
 
     const isAdmin = activeChat?.isGroup && isSameId(activeChat.createdBy, currentUser);
-
-    // Initialize states when modal opens or activeChat changes
-    useEffect(() => {
-        if (activeChat && activeChat.isGroup) {
-            setGroupName(activeChat.name || "");
-            const memberIds = (activeChat.members || []).map(m => m._id);
-            setSelectedUsers(memberIds);
-        }
-        setIsEditing(false);
-        setError("");
-        setCopied(false);
-    }, [activeChat, isOpen]);
 
     const filteredUsers = useMemo(() => {
         if (!searchQuery.trim()) return allUsers;
@@ -285,7 +273,6 @@ export default function ChatDetailsModal({
                                                     } ${isCreator ? "opacity-60 cursor-not-allowed" : ""}`}
                                                 >
                                                     <div className="flex items-center gap-2.5 min-w-0">
-                                                        {/* eslint-disable-next-line @next/next/no-img-element */}
                                                         <Avatar user={user} className="w-8 h-8" />
                                                         <span className="text-sm font-medium text-foreground truncate">
                                                             {user.hikeId} {isCreator && <span className="text-[10px] bg-indigo-500 text-white font-bold px-1.5 py-0.5 rounded-full ml-1 uppercase">Admin</span>}

@@ -4,11 +4,9 @@ import {
     User, 
     Shield, 
     Image as ImageIcon, 
-    X, 
     Copy, 
     Check, 
     Lock, 
-    Upload, 
     Loader2, 
     Camera,
     Info,
@@ -50,7 +48,9 @@ export default function SettingsPage({
     const [mounted, setMounted] = useState(false);
 
     useEffect(() => {
-        setMounted(true);
+        setTimeout(() => {
+            setMounted(true);
+        }, 0);
     }, []);
 
     const handleThemeChange = (newTheme, event) => {
@@ -106,15 +106,19 @@ export default function SettingsPage({
         });
     };
 
-    const [hikeId, setHikeId] = useState("");
-    const [email, setEmail] = useState("");
-    const [bio, setBio] = useState("");
+    const [hikeId, setHikeId] = useState(() => currentUser?.hikeId || "");
+    const [email, setEmail] = useState(() => currentUser?.email || "");
+    const [bio, setBio] = useState(() => currentUser?.bio || "Hey there! I am using ChatX.");
 
     // Avatar state
-    const [avatarMode, setAvatarMode] = useState("initials"); // initials, dicebear, upload
-    const [avatarStyle, setAvatarStyle] = useState("initials");
-    const [avatarSeed, setAvatarSeed] = useState("");
-    const [profilePicture, setProfilePicture] = useState("");
+    const [avatarMode, setAvatarMode] = useState(() => {
+        if (currentUser?.profilePicture) return "upload";
+        if (currentUser?.avatarSeed && currentUser?.avatarStyle) return "dicebear";
+        return "initials";
+    });
+    const [avatarStyle, setAvatarStyle] = useState(() => currentUser?.avatarStyle || "initials");
+    const [avatarSeed, setAvatarSeed] = useState(() => currentUser?.avatarSeed || "");
+    const [profilePicture, setProfilePicture] = useState(() => currentUser?.profilePicture || "");
     const [uploadingImage, setUploadingImage] = useState(false);
     const [avatarError, setAvatarError] = useState("");
 
@@ -129,25 +133,12 @@ export default function SettingsPage({
     const [profileMessage, setProfileMessage] = useState("");
     const [profileSuccess, setProfileSuccess] = useState(false);
 
-    // Initialize fields
-    useEffect(() => {
-        if (currentUser) {
-            setHikeId(currentUser.hikeId || "");
-            setEmail(currentUser.email || "");
-            setBio(currentUser.bio || "Hey there! I am using ChatX.");
-            
-            if (currentUser.profilePicture) {
-                setAvatarMode("upload");
-                setProfilePicture(currentUser.profilePicture);
-            } else if (currentUser.avatarSeed && currentUser.avatarStyle) {
-                setAvatarMode("dicebear");
-                setAvatarStyle(currentUser.avatarStyle);
-                setAvatarSeed(currentUser.avatarSeed);
-            } else {
-                setAvatarMode("initials");
-            }
-        }
-    }, [currentUser]);
+    // Account Management State
+    const [confirmDelete, setConfirmDelete] = useState(false);
+    const [confirmHibernate, setConfirmHibernate] = useState(false);
+    const [deleting, setDeleting] = useState(false);
+    const [hibernating, setHibernating] = useState(false);
+    const [accountError, setAccountError] = useState("");
 
     const handleSaveProfile = async (e) => {
         e.preventDefault();
@@ -442,6 +433,81 @@ export default function SettingsPage({
             avatarStyle,
             avatarSeed: randomSeed
         });
+    };
+
+    const handleHibernate = async () => {
+        if (!confirmHibernate) {
+            setConfirmHibernate(true);
+            setTimeout(() => setConfirmHibernate(false), 5000);
+            return;
+        }
+
+        setHibernating(true);
+        setAccountError("");
+        try {
+            const token = localStorage.getItem("token");
+            const res = await fetch(`${API_URL}/api/users/hibernate`, {
+                method: "POST",
+                headers: {
+                    Authorization: `Bearer ${token}`
+                }
+            });
+
+            if (res.ok) {
+                localStorage.removeItem("token");
+                localStorage.removeItem("user");
+                window.location.href = "/auth";
+            } else {
+                const data = await res.json();
+                setAccountError(data.error || "Failed to hibernate account.");
+            }
+        } catch {
+            setAccountError("Network error occurred.");
+        } finally {
+            setHibernating(false);
+            setConfirmHibernate(false);
+        }
+    };
+
+    const handleDeleteAccount = async () => {
+        if (!confirmDelete) {
+            setConfirmDelete(true);
+            setTimeout(() => setConfirmDelete(false), 5000);
+            return;
+        }
+
+        setDeleting(true);
+        setAccountError("");
+        try {
+            const token = localStorage.getItem("token");
+            const res = await fetch(`${API_URL}/api/users/delete-account`, {
+                method: "DELETE",
+                headers: {
+                    Authorization: `Bearer ${token}`
+                }
+            });
+
+            if (res.ok) {
+                if (typeof window !== "undefined" && currentUser?.hikeId) {
+                    try {
+                        await storePrivateKey(currentUser.hikeId, "");
+                    } catch (err) {
+                        console.error("Failed to delete local private key from IndexedDB:", err);
+                    }
+                }
+                localStorage.removeItem("token");
+                localStorage.removeItem("user");
+                window.location.href = "/auth";
+            } else {
+                const data = await res.json();
+                setAccountError(data.error || "Failed to delete account.");
+            }
+        } catch {
+            setAccountError("Network error occurred.");
+        } finally {
+            setDeleting(false);
+            setConfirmDelete(false);
+        }
     };
 
     const currentAvatarPreviewData = {
@@ -1074,6 +1140,96 @@ export default function SettingsPage({
                                 </div>
                             )}
                         </div>
+                    </div>
+
+                    {/* SECTION 5: ACCOUNT MANAGEMENT */}
+                    <div className="space-y-6 pt-10 border-t border-border/40">
+                        <motion.div 
+                            animate={{
+                                background: [
+                                    "linear-gradient(135deg, rgba(239, 68, 68, 0.08) 0%, rgba(244, 63, 94, 0.03) 50%, rgba(239, 68, 68, 0.08) 100%)",
+                                    "linear-gradient(135deg, rgba(244, 63, 94, 0.08) 0%, rgba(239, 68, 68, 0.03) 50%, rgba(244, 63, 94, 0.08) 100%)",
+                                    "linear-gradient(135deg, rgba(239, 68, 68, 0.08) 0%, rgba(244, 63, 94, 0.03) 50%, rgba(239, 68, 68, 0.08) 100%)"
+                                ],
+                                borderColor: [
+                                    "rgba(239, 68, 68, 0.15)",
+                                    "rgba(244, 63, 94, 0.15)",
+                                    "rgba(239, 68, 68, 0.15)"
+                                ]
+                            }}
+                            transition={{
+                                duration: 10,
+                                repeat: Infinity,
+                                ease: "easeInOut",
+                                delay: 5
+                            }}
+                            className="border rounded-xl p-4 flex items-center gap-3.5 shadow-xs relative overflow-hidden"
+                        >
+                            <motion.div
+                                animate={{ x: ["-100%", "250%"] }}
+                                transition={{ duration: 6, repeat: Infinity, ease: "linear", repeatDelay: 4, delay: 5 }}
+                                className="absolute inset-y-0 w-1/3 bg-gradient-to-r from-transparent via-white/5 to-transparent skew-x-12 pointer-events-none"
+                            />
+                            <div className="p-2.5 rounded-lg bg-rose-500/10 text-rose-500 border border-rose-500/20 shrink-0">
+                                <User className="w-5 h-5" />
+                            </div>
+                            <div>
+                                <h3 className="text-sm font-bold text-foreground tracking-wide">Account Settings</h3>
+                                <p className="text-[11px] text-muted-foreground mt-0.5 leading-normal">Temporarily disable or permanently delete your account.</p>
+                            </div>
+                        </motion.div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {/* Hibernate Card */}
+                            <div className="p-1 flex flex-col justify-between gap-4">
+                                <div className="space-y-1">
+                                    <h4 className="text-sm font-bold text-foreground">Hibernate Profile</h4>
+                                    <p className="text-xs text-muted-foreground leading-relaxed">
+                                        Temporarily disable your account. In groups, you will show as &quot;Hibernating User&quot; with a default avatar. You will be logged out. Logging back in manually unhibernates your profile automatically.
+                                    </p>
+                                </div>
+                                <button
+                                    onClick={handleHibernate}
+                                    disabled={hibernating}
+                                    className={`w-full py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                                        confirmHibernate
+                                            ? "bg-amber-600 hover:bg-amber-700 text-white animate-pulse"
+                                            : "bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 border border-amber-500/20"
+                                    }`}
+                                >
+                                    {hibernating && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                                    {confirmHibernate ? "Click again to confirm Hibernate" : "Hibernate Profile"}
+                                </button>
+                            </div>
+
+                            {/* Delete Card */}
+                            <div className="p-1 flex flex-col justify-between gap-4">
+                                <div className="space-y-1">
+                                    <h4 className="text-sm font-bold text-rose-500">Delete Account</h4>
+                                    <p className="text-xs text-muted-foreground leading-relaxed">
+                                        Permanently delete your profile. This will remove you from all groups, delete all your direct and group messages, E2EE keys, and clear all your settings. This action is irreversible.
+                                    </p>
+                                </div>
+                                <button
+                                    onClick={handleDeleteAccount}
+                                    disabled={deleting}
+                                    className={`w-full py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                                        confirmDelete
+                                            ? "bg-rose-600 hover:bg-rose-700 text-white animate-pulse shadow-md shadow-rose-600/10"
+                                            : "bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 border border-rose-500/20"
+                                    }`}
+                                >
+                                    {deleting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                                    {confirmDelete ? "Click again to confirm DELETE" : "Delete Account"}
+                                </button>
+                            </div>
+                        </div>
+
+                        {accountError && (
+                            <p className="text-xs font-semibold text-rose-500 bg-rose-500/5 border border-rose-500/20 p-2.5 rounded-lg flex items-center gap-1">
+                                <Info className="w-4 h-4" /> {accountError}
+                            </p>
+                        )}
                     </div>
 
                 </div>

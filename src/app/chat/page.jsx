@@ -29,6 +29,7 @@ import EmojiPickerModal from "@/components/chat/modals/EmojiPickerModal";
 import LightboxModal from "@/components/chat/modals/LightboxModal";
 import CreateGroupModal from "@/components/chat/modals/CreateGroupModal";
 import ChatDetailsModal from "@/components/chat/modals/ChatDetailsModal";
+import GroupDetailsPage from "@/components/chat/GroupDetailsPage";
 
 // Utilities
 import { isSameId, formatLastSeenText } from "@/utils/chatHelpers";
@@ -49,12 +50,28 @@ export default function ChatPage() {
     useEffect(() => {
         currentUserRef.current = currentUser;
     }, [currentUser]);
-    const [activeChat, setActiveChat] = useState(null);
+    const [activeChat, _setActiveChat] = useState(null);
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     const [recentChats, setRecentChats] = useState([]);
     const [groups, setGroups] = useState([]);
+    const groupsRef = useRef([]);
+    useEffect(() => {
+        groupsRef.current = groups;
+    }, [groups]);
     const [isCreateGroupOpen, setIsCreateGroupOpen] = useState(false);
     const [isChatDetailsOpen, setIsChatDetailsOpen] = useState(false);
+    const [isGroupDetailsOpen, setIsGroupDetailsOpen] = useState(false);
+
+    const setActiveChat = useCallback((value) => {
+        _setActiveChat((prev) => {
+            const next = typeof value === "function" ? value(prev) : value;
+            if (!prev || !next || prev._id !== next._id) {
+                setIsGroupDetailsOpen(false);
+                setIsChatDetailsOpen(false);
+            }
+            return next;
+        });
+    }, []);
     const [allUsers, setAllUsers] = useState([]);
     const allUsersRef = useRef([]);
 
@@ -90,6 +107,71 @@ export default function ChatPage() {
     const [isCameraOn, setIsCameraOn] = useState(true);
 
     const callingAudioRef = useRef(null);
+
+    // Custom Dialog Modal States
+    const [promptModal, setPromptModal] = useState({
+        isOpen: false,
+        title: "",
+        description: "",
+        onConfirm: null,
+        onCancel: null
+    });
+    const [confirmModal, setConfirmModal] = useState({
+        isOpen: false,
+        title: "",
+        description: "",
+        onConfirm: null,
+        onCancel: null
+    });
+    const [alertModal, setAlertModal] = useState({
+        isOpen: false,
+        title: "",
+        message: ""
+    });
+
+    const showPasswordPrompt = (title, description) => {
+        return new Promise((resolve) => {
+            setPromptModal({
+                isOpen: true,
+                title,
+                description,
+                onConfirm: (password) => {
+                    setPromptModal(prev => ({ ...prev, isOpen: false }));
+                    resolve(password);
+                },
+                onCancel: () => {
+                    setPromptModal(prev => ({ ...prev, isOpen: false }));
+                    resolve(null);
+                }
+            });
+        });
+    };
+
+    const showConfirm = (title, description) => {
+        return new Promise((resolve) => {
+            setConfirmModal({
+                isOpen: true,
+                title,
+                description,
+                onConfirm: () => {
+                    setConfirmModal(prev => ({ ...prev, isOpen: false }));
+                    resolve(true);
+                },
+                onCancel: () => {
+                    setConfirmModal(prev => ({ ...prev, isOpen: false }));
+                    resolve(false);
+                }
+            });
+        });
+    };
+
+    const showAlert = (title, message) => {
+        setAlertModal({
+            isOpen: true,
+            title,
+            message
+        });
+    };
 
     // Media Sharing states
     const fileInputRef = useRef(null);
@@ -317,8 +399,8 @@ export default function ChatPage() {
                                 privateKey
                             );
                             return { ...msg, text: decryptedText };
-                        } catch (err) {
-                            console.error("Failed to decrypt group message:", err);
+                        } catch {
+                            console.warn("Failed to decrypt group message (could be old key)");
                             return { ...msg, text: "🔒 [Could not decrypt]" };
                         }
                     } else {
@@ -333,7 +415,7 @@ export default function ChatPage() {
                                 privateKey
                             );
                             return { ...msg, text: decryptedText };
-                        } catch (err) {
+                        } catch {
                             try {
                                 const decryptedText = await decryptMessage(
                                     fallbackKey,
@@ -342,8 +424,8 @@ export default function ChatPage() {
                                     privateKey
                                 );
                                 return { ...msg, text: decryptedText };
-                            } catch (fallbackErr) {
-                                console.error("Failed to decrypt history message with both keys", { err, fallbackErr });
+                            } catch {
+                                console.warn("Failed to decrypt history message with both keys (could be old key)");
                                 return { ...msg, text: "🔒 [Could not decrypt]" };
                             }
                         }
@@ -384,14 +466,21 @@ export default function ChatPage() {
         }
     }, []);
 
-    // Decrypt all recent chats' last messages asynchronously
+    // Decrypt all recent chats and groups' last messages asynchronously
     useEffect(() => {
         const decryptAll = async () => {
-            if (!currentUser?.hikeId || recentChats.length === 0) return;
+            if (!currentUser?.hikeId) return;
+            if (recentChats.length === 0 && groups.length === 0) return;
+
             const privateKey = await getPrivateKey(currentUser.hikeId);
             if (!privateKey) return;
 
-            for (const chat of recentChats) {
+            const allConversations = [
+                ...recentChats,
+                ...groups.map(g => ({ ...g, isGroup: true }))
+            ];
+
+            for (const chat of allConversations) {
                 const msg = chat.latestMessage;
                 if (!msg) continue;
 
@@ -405,43 +494,81 @@ export default function ChatPage() {
 
                 if (alreadyDecrypted) continue;
 
+                const isMine = isSameId(msg.senderId, currentUser);
+
                 if (msg.isNudge) {
+                    const prefix = chat.isGroup
+                        ? `${isMine ? "You" : (msg.senderHikeId || (typeof msg.senderId === 'object' && msg.senderId?.hikeId) || "User")}: `
+                        : "";
                     setDecryptedLastMessages(prev => ({
                         ...prev,
-                        [chat._id]: { text: "⚡ Sent a Nudge!", msgId: msg._id }
+                        [chat._id]: { text: `${prefix}⚡ Sent a Nudge!`, msgId: msg._id }
                     }));
                     continue;
                 }
 
-                const isMine = isSameId(msg.senderId, currentUser);
-                const primaryKey = isMine ? msg.encryptedAesKeySender : msg.encryptedAesKeyReceiver;
-                const fallbackKey = isMine ? msg.encryptedAesKeyReceiver : msg.encryptedAesKeySender;
+                if (chat.isGroup) {
+                    const targetKey = isMine
+                        ? msg.encryptedAesKeySender
+                        : msg.groupAesKeys?.find(k => isSameId(k.userId, currentUser))?.encryptedAesKey;
 
-                try {
-                    const decText = await decryptMessage(primaryKey, msg.ciphertext, msg.iv, privateKey);
-                    setDecryptedLastMessages(prev => ({
-                        ...prev,
-                        [chat._id]: { text: decText, msgId: msg._id }
-                    }));
-                } catch {
+                    if (!targetKey) {
+                        setDecryptedLastMessages(prev => ({
+                            ...prev,
+                            [chat._id]: { text: "🔒 [E2EE key not available]", msgId: msg._id }
+                        }));
+                        continue;
+                    }
+
                     try {
-                        const decText = await decryptMessage(fallbackKey, msg.ciphertext, msg.iv, privateKey);
+                        const decText = await decryptMessage(
+                            targetKey,
+                            msg.ciphertext,
+                            msg.iv,
+                            privateKey
+                        );
+                        const senderName = isMine ? "You" : (msg.senderHikeId || (typeof msg.senderId === 'object' && msg.senderId?.hikeId) || "User");
+                        setDecryptedLastMessages(prev => ({
+                            ...prev,
+                            [chat._id]: { text: `${senderName}: ${decText}`, msgId: msg._id }
+                        }));
+                    } catch {
+                        console.warn("Failed to decrypt sidebar group message (could be old key)");
+                        setDecryptedLastMessages(prev => ({
+                            ...prev,
+                            [chat._id]: { text: "🔒 [Could not decrypt]", msgId: msg._id }
+                        }));
+                    }
+                } else {
+                    const primaryKey = isMine ? msg.encryptedAesKeySender : msg.encryptedAesKeyReceiver;
+                    const fallbackKey = isMine ? msg.encryptedAesKeyReceiver : msg.encryptedAesKeySender;
+
+                    try {
+                        const decText = await decryptMessage(primaryKey, msg.ciphertext, msg.iv, privateKey);
                         setDecryptedLastMessages(prev => ({
                             ...prev,
                             [chat._id]: { text: decText, msgId: msg._id }
                         }));
                     } catch {
-                        setDecryptedLastMessages(prev => ({
-                            ...prev,
-                            [chat._id]: { text: "🔒 [Could not decrypt]", msgId: msg._id }
-                        }));
+                        try {
+                            const decText = await decryptMessage(fallbackKey, msg.ciphertext, msg.iv, privateKey);
+                            setDecryptedLastMessages(prev => ({
+                                ...prev,
+                                [chat._id]: { text: decText, msgId: msg._id }
+                            }));
+                        } catch {
+                            setDecryptedLastMessages(prev => ({
+                                ...prev,
+                                [chat._id]: { text: "🔒 [Could not decrypt]", msgId: msg._id }
+                            }));
+                        }
                     }
                 }
             }
         };
 
         decryptAll();
-    }, [recentChats, currentUser]);
+    }, [recentChats, groups, currentUser]);
 
     // ── Robust Notification System ──────────────────────────
 
@@ -654,10 +781,10 @@ export default function ChatPage() {
 
             let contactUser;
             if (isGroupMsg) {
-                contactUser = groups.find(g => isSameId(g._id, contactId));
+                contactUser = groupsRef.current.find(g => isSameId(g._id, contactId));
                 if (!contactUser) {
                     await fetchGroups();
-                    contactUser = groups.find(g => isSameId(g._id, contactId));
+                    contactUser = groupsRef.current.find(g => isSameId(g._id, contactId));
                 }
             } else {
                 contactUser = allUsersRef.current.find(u => isSameId(u._id, contactId));
@@ -744,8 +871,8 @@ export default function ChatPage() {
                                         msg.iv,
                                         privateKey
                                     );
-                                } catch (decErr) {
-                                    console.error("Group decryption failed:", decErr);
+                                } catch {
+                                    console.warn("Group decryption failed (could be old key)");
                                     decryptedText = "🔒 [Could not decrypt]";
                                 }
                             }
@@ -765,15 +892,15 @@ export default function ChatPage() {
                                         msg.iv,
                                         privateKey
                                     );
-                                } catch (decErr) {
-                                    console.error("Decryption failed in socket receive_message:", decErr);
+                                } catch {
+                                    console.warn("Decryption failed in socket receive_message (could be old key)");
                                     decryptedText = "🔒 [Could not decrypt]";
                                 }
                             }
                         }
                     }
-                } catch (err) {
-                    console.error("Failed to load key for real-time decryption:", err);
+                } catch {
+                    console.warn("Failed to load key for real-time decryption");
                 }
             }
 
@@ -832,10 +959,10 @@ export default function ChatPage() {
 
             let contactUser;
             if (isGroupMsg) {
-                contactUser = groups.find(g => isSameId(g._id, contactId));
+                contactUser = groupsRef.current.find(g => isSameId(g._id, contactId));
                 if (!contactUser) {
                     await fetchGroups();
-                    contactUser = groups.find(g => isSameId(g._id, contactId));
+                    contactUser = groupsRef.current.find(g => isSameId(g._id, contactId));
                 }
             } else {
                 contactUser = allUsersRef.current.find(u => isSameId(u._id, contactId));
@@ -892,7 +1019,7 @@ export default function ChatPage() {
                                 msg.iv,
                                 privateKey
                             );
-                        } catch (err) {
+                        } catch {
                             if (!isGroupMsg) {
                                 decryptedText = await decryptMessage(
                                     msg.encryptedAesKeyReceiver,
@@ -901,14 +1028,14 @@ export default function ChatPage() {
                                     privateKey
                                 );
                             } else {
-                                console.error("Sender failed group decryption:", err);
+                                console.warn("Sender failed group decryption");
                                 decryptedText = "🔒 [Could not decrypt]";
                             }
                         }
                         setMessages(prev => [...prev, { ...msg, text: decryptedText }]);
                     }
-                } catch (err) {
-                    console.error("Failed to decrypt sent message with both keys", err);
+                } catch {
+                    console.warn("Failed to decrypt sent message with both keys");
                 }
             }
         });
@@ -964,14 +1091,14 @@ export default function ChatPage() {
                                     msg.iv,
                                     privateKey
                                 );
-                            } catch (err) {
-                                console.error("Failed to decrypt edited message with fallback key:", err);
+                            } catch {
+                                console.warn("Failed to decrypt edited message with fallback key");
                             }
                         }
                     }
                 }
-            } catch (err) {
-                console.error("Failed to decrypt edited message:", err);
+            } catch {
+                console.warn("Failed to decrypt edited message");
             }
 
             const updatedMsg = { ...msg, text: decryptedText };
@@ -990,10 +1117,10 @@ export default function ChatPage() {
 
             let contactUser;
             if (isGroupMsg) {
-                contactUser = groups.find(g => isSameId(g._id, contactId));
+                contactUser = groupsRef.current.find(g => isSameId(g._id, contactId));
                 if (!contactUser) {
                     await fetchGroups();
-                    contactUser = groups.find(g => isSameId(g._id, contactId));
+                    contactUser = groupsRef.current.find(g => isSameId(g._id, contactId));
                 }
             } else {
                 contactUser = allUsersRef.current.find(u => isSameId(u._id, contactId));
@@ -1075,11 +1202,17 @@ export default function ChatPage() {
             }
         });
 
-        socket?.on("group_removed", ({ groupId }) => {
+        socket?.on("group_removed", ({ groupId, reason }) => {
             setGroups(prev => prev.filter(g => !isSameId(g._id, groupId)));
             if (activeChatRef.current && isSameId(groupId, activeChatRef.current)) {
                 setActiveChat(null);
-                alert("You have been removed from this group by the admin.");
+                if (reason === "left") {
+                    showAlert("Group Left", "You have successfully left the group.");
+                } else if (reason === "deleted") {
+                    showAlert("Group Deleted", "This group has been deleted by the admin.");
+                } else {
+                    showAlert("Removed from Group", "You have been removed from this group by the admin.");
+                }
             }
         });
 
@@ -1127,7 +1260,7 @@ export default function ChatPage() {
         });
 
         return () => { disconnectSocket(); };
-    }, [router, fetchUsers, checkPrivateKey, addInAppToast, showDesktopNotification]);
+    }, [router, fetchUsers, checkPrivateKey, addInAppToast, showDesktopNotification, fetchGroups, setActiveChat]);
 
     // ── Auto-scroll to latest message ──────────────────────
     useEffect(() => {
@@ -1229,7 +1362,7 @@ export default function ChatPage() {
 
         fetchUsers();
         fetchChatSettings();
-    }, [currentUser, fetchHistory, fetchUsers, fetchChatSettings, activeChat]);
+    }, [currentUser, fetchHistory, fetchUsers, fetchChatSettings, activeChat, setActiveChat]);
 
     useEffect(() => {
         selectChatRef.current = selectChat;
@@ -1563,14 +1696,18 @@ export default function ChatPage() {
 
     const handleRegenerateKeys = async () => {
         if (!currentUser?.hikeId) return;
-        const confirmRegen = confirm(
+        const confirmRegen = await showConfirm(
+            "Regenerate E2EE Keys",
             "Warning: Regenerating your E2EE keys will update your public key on the server. You will be able to decrypt all FUTURE messages, but any PAST messages encrypted with your old key will remain locked. Do you want to proceed?"
         );
         if (!confirmRegen) return;
 
-        const password = prompt("Please enter your ChatX account password to securely back up your new private key on the server:");
+        const password = await showPasswordPrompt(
+            "Account Password Verification",
+            "Please enter your ChatX account password to securely back up your new private key on the server:"
+        );
         if (!password) {
-            alert("Password is required to regenerate keys securely.");
+            showAlert("Verification Failed", "Password is required to regenerate keys securely.");
             return;
         }
 
@@ -1603,7 +1740,6 @@ export default function ChatPage() {
                 localStorage.setItem("user", JSON.stringify(updatedUser));
 
                 setHasPrivateKey(true);
-                alert("E2EE Keys successfully regenerated and securely backed up to the server! Your future conversations are fully secure.");
             } else {
                 alert("Failed to update keys on server.");
             }
@@ -1644,7 +1780,7 @@ export default function ChatPage() {
         }
     };
 
-    const handleUpdateGroup = async (groupId, name, memberIds) => {
+    const handleUpdateGroup = async (groupId, name, memberIds, profilePicture, avatarSeed, avatarStyle) => {
         try {
             const token = localStorage.getItem("token");
             if (!token) return;
@@ -1655,7 +1791,13 @@ export default function ChatPage() {
                     "Content-Type": "application/json",
                     Authorization: `Bearer ${token}`
                 },
-                body: JSON.stringify({ name, members: memberIds })
+                body: JSON.stringify({
+                    name,
+                    members: memberIds,
+                    profilePicture,
+                    avatarSeed,
+                    avatarStyle
+                })
             });
 
             if (res.ok) {
@@ -1682,7 +1824,8 @@ export default function ChatPage() {
 
     const handleRestorePrivateKey = async () => {
         if (!currentUser?.hikeId) return;
-        const password = prompt(
+        const password = await showPasswordPrompt(
+            "Account Password Verification",
             "Please enter your ChatX account password to restore your secure E2EE private key from the server backup:"
         );
         if (!password) return;
@@ -1696,7 +1839,7 @@ export default function ChatPage() {
             const meData = await res.json();
 
             if (!meData.encryptedPrivateKey) {
-                alert("No private key backup found on the server. Please regenerate your E2EE keys in Settings.");
+                showAlert("Backup Not Found", "No private key backup found on the server. Please regenerate your E2EE keys in Settings.");
                 return;
             }
 
@@ -1704,7 +1847,7 @@ export default function ChatPage() {
             await storePrivateKey(currentUser.hikeId, decryptedKey);
 
             setHasPrivateKey(true);
-            alert("E2EE Private Key successfully restored! All your messages will now be decrypted.");
+            showAlert("Success", "E2EE Private Key successfully restored! All your messages will now be decrypted.");
 
             if (activeChat) {
                 fetchHistory(activeChat, currentUser);
@@ -1712,7 +1855,7 @@ export default function ChatPage() {
             fetchUsers();
         } catch (err) {
             console.error("Failed to restore private key:", err);
-            alert("Restoration failed: Please check if your password is correct.");
+            showAlert("Error", "Restoration failed: Please check if your password is correct.");
         }
     };
 
@@ -1775,7 +1918,10 @@ export default function ChatPage() {
     // 3-dots Menu action: Clear Chat History persistently
     const handleClearChat = async () => {
         if (!activeChat) return;
-        const confirmClear = confirm("Are you sure you want to permanently clear all message history in this chat? This cannot be undone.");
+        const confirmClear = await showConfirm(
+            "Clear Chat History",
+            "Are you sure you want to permanently clear all message history in this chat? This cannot be undone."
+        );
         if (!confirmClear) return;
 
         try {
@@ -1789,11 +1935,11 @@ export default function ChatPage() {
                 setMessages([]);
                 setIsMenuOpen(false);
             } else {
-                alert("Failed to clear chat history.");
+                showAlert("Error", "Failed to clear chat history.");
             }
         } catch (err) {
             console.error("Error clearing chat:", err);
-            alert("Error clearing chat history.");
+            showAlert("Error", "Error clearing chat history.");
         }
     };
 
@@ -1935,6 +2081,7 @@ export default function ChatPage() {
             {/* Main Chat Area */}
             {isSettingsOpen ? (
                 <SettingsPage
+                    key={currentUser?._id}
                     currentUser={currentUser}
                     setCurrentUser={setCurrentUser}
                     hasPrivateKey={hasPrivateKey}
@@ -1943,13 +2090,29 @@ export default function ChatPage() {
                     onClose={() => setIsSettingsOpen(false)}
                     socket={getSocket()}
                 />
+            ) : isGroupDetailsOpen && activeChat?.isGroup ? (
+                <GroupDetailsPage
+                    key={activeChat?._id}
+                    activeChat={activeChat}
+                    currentUser={currentUser}
+                    allUsers={allUsers}
+                    onUpdateGroup={handleUpdateGroup}
+                    onClose={() => setIsGroupDetailsOpen(false)}
+                    showConfirm={showConfirm}
+                />
             ) : (
                 <ChatArea
                     activeChat={activeChat}
                     setActiveChat={setActiveChat}
                     currentUser={currentUser}
                     messages={messages}
-                    onViewDetails={() => setIsChatDetailsOpen(true)}
+                    onViewDetails={() => {
+                        if (activeChat?.isGroup) {
+                            setIsGroupDetailsOpen(true);
+                        } else {
+                            setIsChatDetailsOpen(true);
+                        }
+                    }}
                     typingUsers={typingUsers}
                     onlineStatuses={onlineStatuses}
                     startCall={startCall}
@@ -2053,7 +2216,6 @@ export default function ChatPage() {
                 {isCreateGroupOpen && (
                     <CreateGroupModal
                         allUsers={allUsers}
-                        currentUser={currentUser}
                         isOpen={isCreateGroupOpen}
                         onClose={() => setIsCreateGroupOpen(false)}
                         onCreateGroup={handleCreateGroup}
@@ -2064,6 +2226,7 @@ export default function ChatPage() {
             <AnimatePresence>
                 {isChatDetailsOpen && (
                     <ChatDetailsModal
+                        key={activeChat?._id}
                         activeChat={activeChat}
                         currentUser={currentUser}
                         allUsers={allUsers}
@@ -2073,6 +2236,117 @@ export default function ChatPage() {
                         onClose={() => setIsChatDetailsOpen(false)}
                         onUpdateGroup={handleUpdateGroup}
                     />
+                )}
+            </AnimatePresence>
+
+            {/* Custom Prompt Modal */}
+            <AnimatePresence>
+                {promptModal.isOpen && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+                        <motion.div
+                            initial={{ scale: 0.95, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0.95, opacity: 0 }}
+                            className="bg-card border border-border rounded-2xl max-w-sm w-full p-6 shadow-2xl space-y-4"
+                        >
+                            <div>
+                                <h3 className="font-bold text-base text-foreground">{promptModal.title}</h3>
+                                <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{promptModal.description}</p>
+                            </div>
+                            <form
+                                onSubmit={(e) => {
+                                    e.preventDefault();
+                                    const val = e.target.passwordInput.value;
+                                    promptModal.onConfirm(val);
+                                }}
+                                className="space-y-4"
+                            >
+                                <input
+                                    type="password"
+                                    name="passwordInput"
+                                    required
+                                    placeholder="Enter your password"
+                                    autoFocus
+                                    className="w-full px-3.5 py-2.5 rounded-xl bg-muted text-foreground border border-border focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm font-semibold transition-all"
+                                />
+                                <div className="flex gap-2 justify-end">
+                                    <button
+                                        type="button"
+                                        onClick={promptModal.onCancel}
+                                        className="px-4 py-2 hover:bg-muted text-foreground rounded-xl text-xs font-semibold transition-colors cursor-pointer"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        type="submit"
+                                        className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold transition-colors cursor-pointer"
+                                    >
+                                        Confirm
+                                    </button>
+                                </div>
+                            </form>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
+
+            {/* Custom Confirm Modal */}
+            <AnimatePresence>
+                {confirmModal.isOpen && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+                        <motion.div
+                            initial={{ scale: 0.95, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0.95, opacity: 0 }}
+                            className="bg-card border border-border rounded-2xl max-w-sm w-full p-6 shadow-2xl space-y-4"
+                        >
+                            <div>
+                                <h3 className="font-bold text-base text-foreground">{confirmModal.title}</h3>
+                                <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{confirmModal.description}</p>
+                            </div>
+                            <div className="flex gap-2 justify-end">
+                                <button
+                                    onClick={confirmModal.onCancel}
+                                    className="px-4 py-2 hover:bg-muted text-foreground rounded-xl text-xs font-semibold transition-colors cursor-pointer"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={confirmModal.onConfirm}
+                                    className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold transition-colors cursor-pointer"
+                                >
+                                    Proceed
+                                </button>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
+
+            {/* Custom Alert Modal */}
+            <AnimatePresence>
+                {alertModal.isOpen && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+                        <motion.div
+                            initial={{ scale: 0.95, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0.95, opacity: 0 }}
+                            className="bg-card border border-border rounded-2xl max-w-sm w-full p-6 shadow-2xl space-y-4"
+                        >
+                            <div>
+                                <h3 className="font-bold text-base text-foreground">{alertModal.title}</h3>
+                                <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{alertModal.message}</p>
+                            </div>
+                            <div className="flex justify-end">
+                                <button
+                                    onClick={() => setAlertModal(prev => ({ ...prev, isOpen: false }))}
+                                    className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold transition-colors cursor-pointer"
+                                >
+                                    OK
+                                </button>
+                            </div>
+                        </motion.div>
+                    </div>
                 )}
             </AnimatePresence>
         </div>

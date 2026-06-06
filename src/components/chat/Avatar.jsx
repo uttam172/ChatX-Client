@@ -16,8 +16,14 @@ export default function Avatar({ user, className = "w-10 h-10", alt = "", ...pro
     let src = "";
 
     if (user.isGroup) {
-        // For groups, generate a beautiful Initials avatar based on group name
-        src = `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(user.name || "Group")}&radius=50&backgroundType=gradientLinear`;
+        if (user.profilePicture) {
+            src = user.profilePicture;
+        } else if (user.avatarSeed && user.avatarStyle && user.avatarStyle !== "initials") {
+            src = `https://api.dicebear.com/7.x/${user.avatarStyle}/svg?seed=${encodeURIComponent(user.avatarSeed)}&radius=50&backgroundType=gradientLinear`;
+        } else {
+            // For groups, generate a beautiful Initials avatar based on group name
+            src = `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(user.name || "Group")}&radius=50&backgroundType=gradientLinear`;
+        }
     } else {
         if (user.profilePicture) {
             // Can be Cloudinary URL or Base64 data string
