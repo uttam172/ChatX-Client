@@ -9,6 +9,7 @@ export const initiateSocketConnection = (token) => {
         auth: {
             token,
         },
+        transports: ['websocket'],
     });
     console.log(`Connecting socket...`);
 };
