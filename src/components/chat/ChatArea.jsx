@@ -57,7 +57,8 @@ export default function ChatArea({
     setActiveLightboxImage,
     messagesEndRef,
     handleMessageMouseEnter,
-    handleMessageMouseLeave
+    handleMessageMouseLeave,
+    onViewDetails
 }) {
     return (
         <motion.div
@@ -102,6 +103,7 @@ export default function ChatArea({
                         handleToggleHideChat={handleToggleHideChat}
                         chatSettings={chatSettings}
                         setIsE2EEInfoOpen={setIsE2EEInfoOpen}
+                        onViewDetails={onViewDetails}
                     />
 
                     {/* E2EE Key Restoration Warning Banner */}

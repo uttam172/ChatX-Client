@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { initiateSocketConnection, getSocket, disconnectSocket } from "@/utils/socket";
 import {
     encryptMessage,
+    encryptGroupMessage,
     decryptMessage,
     getPrivateKey,
     generateE2EEKeys,
@@ -26,9 +27,11 @@ import CallOverlay from "@/components/chat/modals/CallOverlay";
 import E2EEInfoModal from "@/components/chat/modals/E2EEInfoModal";
 import EmojiPickerModal from "@/components/chat/modals/EmojiPickerModal";
 import LightboxModal from "@/components/chat/modals/LightboxModal";
+import CreateGroupModal from "@/components/chat/modals/CreateGroupModal";
+import ChatDetailsModal from "@/components/chat/modals/ChatDetailsModal";
 
 // Utilities
-import { isSameId } from "@/utils/chatHelpers";
+import { isSameId, formatLastSeenText } from "@/utils/chatHelpers";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
@@ -49,6 +52,9 @@ export default function ChatPage() {
     const [activeChat, setActiveChat] = useState(null);
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     const [recentChats, setRecentChats] = useState([]);
+    const [groups, setGroups] = useState([]);
+    const [isCreateGroupOpen, setIsCreateGroupOpen] = useState(false);
+    const [isChatDetailsOpen, setIsChatDetailsOpen] = useState(false);
     const [allUsers, setAllUsers] = useState([]);
     const allUsersRef = useRef([]);
 
@@ -170,6 +176,30 @@ export default function ChatPage() {
         activeChatRef.current = activeChat;
     }, [activeChat]);
 
+    // Fetch all groups from backend
+    const fetchGroups = useCallback(async () => {
+        try {
+            const token = localStorage.getItem("token");
+            if (!token) return;
+
+            const res = await fetch(`${API_URL}/api/groups`, {
+                headers: { Authorization: `Bearer ${token}` },
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                setGroups(data.map(g => {
+                    if (activeChatRef.current && isSameId(g._id, activeChatRef.current)) {
+                        return { ...g, unreadCount: 0 };
+                    }
+                    return g;
+                }));
+            }
+        } catch (err) {
+            console.error("Failed to fetch groups", err);
+        }
+    }, []);
+
     // Fetch all users and recent chats from backend
     const fetchUsers = useCallback(async () => {
         try {
@@ -199,10 +229,13 @@ export default function ChatPage() {
                     return c;
                 }));
             }
+
+            // Also synchronize groups
+            fetchGroups();
         } catch (err) {
             console.error("Failed to fetch users", err);
         }
-    }, []);
+    }, [fetchGroups]);
 
     // Update allUsersRef to prevent stale closures in socket events
     useEffect(() => {
@@ -233,13 +266,17 @@ export default function ChatPage() {
         }, 0);
     }, [fetchChatSettings, activeChat]);
 
-    // Fetch message history with selected contact and decrypt it
+    // Fetch message history with selected contact/group and decrypt it
     const fetchHistory = useCallback(async (peer, parsedUser) => {
         try {
             const token = localStorage.getItem("token");
             if (!token) return;
 
-            const res = await fetch(`${API_URL}/api/users/history/${peer._id}`, {
+            const url = peer.isGroup
+                ? `${API_URL}/api/groups/history/${peer._id}`
+                : `${API_URL}/api/users/history/${peer._id}`;
+
+            const res = await fetch(url, {
                 headers: { Authorization: `Bearer ${token}` },
             });
 
@@ -262,36 +299,64 @@ export default function ChatPage() {
                 historyMessages.map(async (msg) => {
                     if (msg.isNudge) return { ...msg, text: "⚡ Sent a Nudge!" };
                     const isMine = isSameId(msg.senderId, parsedUser);
-                    const primaryKey = isMine ? msg.encryptedAesKeySender : msg.encryptedAesKeyReceiver;
-                    const fallbackKey = isMine ? msg.encryptedAesKeyReceiver : msg.encryptedAesKeySender;
 
-                    try {
-                        const decryptedText = await decryptMessage(
-                            primaryKey,
-                            msg.ciphertext,
-                            msg.iv,
-                            privateKey
-                        );
-                        return { ...msg, text: decryptedText };
-                    } catch (err) {
+                    if (peer.isGroup) {
+                        const targetKey = isMine
+                            ? msg.encryptedAesKeySender
+                            : msg.groupAesKeys?.find(k => isSameId(k.userId, parsedUser))?.encryptedAesKey;
+
+                        if (!targetKey) {
+                            return { ...msg, text: "🔒 [E2EE key not available for your user]" };
+                        }
+
                         try {
                             const decryptedText = await decryptMessage(
-                                fallbackKey,
+                                targetKey,
                                 msg.ciphertext,
                                 msg.iv,
                                 privateKey
                             );
                             return { ...msg, text: decryptedText };
-                        } catch (fallbackErr) {
-                            console.error("Failed to decrypt history message with both keys", { err, fallbackErr });
+                        } catch (err) {
+                            console.error("Failed to decrypt group message:", err);
                             return { ...msg, text: "🔒 [Could not decrypt]" };
+                        }
+                    } else {
+                        const primaryKey = isMine ? msg.encryptedAesKeySender : msg.encryptedAesKeyReceiver;
+                        const fallbackKey = isMine ? msg.encryptedAesKeyReceiver : msg.encryptedAesKeySender;
+
+                        try {
+                            const decryptedText = await decryptMessage(
+                                primaryKey,
+                                msg.ciphertext,
+                                msg.iv,
+                                privateKey
+                            );
+                            return { ...msg, text: decryptedText };
+                        } catch (err) {
+                            try {
+                                const decryptedText = await decryptMessage(
+                                    fallbackKey,
+                                    msg.ciphertext,
+                                    msg.iv,
+                                    privateKey
+                                );
+                                return { ...msg, text: decryptedText };
+                            } catch (fallbackErr) {
+                                console.error("Failed to decrypt history message with both keys", { err, fallbackErr });
+                                return { ...msg, text: "🔒 [Could not decrypt]" };
+                            }
                         }
                     }
                 })
             );
 
             // Find the first unread message from the peer
-            const firstUnread = decrypted.find(m => !m.isNudge && !isSameId(m.senderId, parsedUser) && !m.read);
+            const firstUnread = decrypted.find(m => 
+                !m.isNudge && 
+                !isSameId(m.senderId, parsedUser) && 
+                (peer.isGroup ? !m.readBy?.some(uid => isSameId(uid, parsedUser)) : !m.read)
+            );
             setFirstUnreadMessageId(firstUnread ? firstUnread._id : null);
 
             setMessages(decrypted);
@@ -584,17 +649,58 @@ export default function ChatPage() {
         const socket = getSocket();
 
         socket?.on("receive_message", async (msg) => {
-            const contactId = isSameId(msg.senderId, parsedUser) ? msg.receiverId : msg.senderId;
-            let contactUser = allUsersRef.current.find(u => isSameId(u._id, contactId));
-            if (!contactUser) {
-                await fetchUsers();
+            const isGroupMsg = !!msg.groupId;
+            const contactId = isGroupMsg ? msg.groupId : (isSameId(msg.senderId, parsedUser) ? msg.receiverId : msg.senderId);
+
+            let contactUser;
+            if (isGroupMsg) {
+                contactUser = groups.find(g => isSameId(g._id, contactId));
+                if (!contactUser) {
+                    await fetchGroups();
+                    contactUser = groups.find(g => isSameId(g._id, contactId));
+                }
+            } else {
                 contactUser = allUsersRef.current.find(u => isSameId(u._id, contactId));
+                if (!contactUser) {
+                    await fetchUsers();
+                    contactUser = allUsersRef.current.find(u => isSameId(u._id, contactId));
+                }
             }
 
             const isActive = isSameId(contactId, activeChatRef.current);
             const isPeerMessage = !isSameId(msg.senderId, parsedUser);
 
-            if (contactUser) {
+            if (isGroupMsg) {
+                setGroups(prev => {
+                    const filtered = prev.filter(c => !isSameId(c._id, contactId));
+                    const existing = prev.find(c => isSameId(c._id, contactId)) || contactUser;
+
+                    if (!existing) return prev;
+
+                    let currentUnread = existing.unreadCount || 0;
+                    if (!isActive && isPeerMessage) {
+                        currentUnread += 1;
+                    }
+
+                    const updatedGroup = {
+                        ...existing,
+                        latestMessage: msg,
+                        unreadCount: currentUnread,
+                        isGroup: true
+                    };
+                    return [updatedGroup, ...filtered];
+                });
+
+                if (isActive && isPeerMessage) {
+                    const token = localStorage.getItem("token");
+                    if (token) {
+                        fetch(`${API_URL}/api/groups/read/${contactId}`, {
+                            method: "POST",
+                            headers: { Authorization: `Bearer ${token}` }
+                        }).catch(err => console.error("Error marking group read:", err));
+                    }
+                }
+            } else if (contactUser) {
                 setRecentChats(prev => {
                     const filtered = prev.filter(c => !isSameId(c._id, contactId));
                     const existing = prev.find(c => isSameId(c._id, contactId));
@@ -628,24 +734,41 @@ export default function ChatPage() {
                 try {
                     const privateKey = await getPrivateKey(parsedUser.hikeId);
                     if (privateKey) {
-                        try {
-                            decryptedText = await decryptMessage(
-                                msg.encryptedAesKeyReceiver,
-                                msg.ciphertext,
-                                msg.iv,
-                                privateKey
-                            );
-                        } catch {
+                        if (isGroupMsg) {
+                            const groupKeyObj = msg.groupAesKeys?.find(k => isSameId(k.userId, parsedUser));
+                            if (groupKeyObj) {
+                                try {
+                                    decryptedText = await decryptMessage(
+                                        groupKeyObj.encryptedAesKey,
+                                        msg.ciphertext,
+                                        msg.iv,
+                                        privateKey
+                                    );
+                                } catch (decErr) {
+                                    console.error("Group decryption failed:", decErr);
+                                    decryptedText = "🔒 [Could not decrypt]";
+                                }
+                            }
+                        } else {
                             try {
                                 decryptedText = await decryptMessage(
-                                    msg.encryptedAesKeySender,
+                                    msg.encryptedAesKeyReceiver,
                                     msg.ciphertext,
                                     msg.iv,
                                     privateKey
                                 );
-                            } catch (decErr) {
-                                console.error("Decryption failed in socket receive_message:", decErr);
-                                decryptedText = "🔒 [Could not decrypt]";
+                            } catch {
+                                try {
+                                    decryptedText = await decryptMessage(
+                                        msg.encryptedAesKeySender,
+                                        msg.ciphertext,
+                                        msg.iv,
+                                        privateKey
+                                    );
+                                } catch (decErr) {
+                                    console.error("Decryption failed in socket receive_message:", decErr);
+                                    decryptedText = "🔒 [Could not decrypt]";
+                                }
                             }
                         }
                     }
@@ -655,9 +778,10 @@ export default function ChatPage() {
             }
 
             if (isPeerMessage) {
+                const sidebarText = isGroupMsg ? `${msg.senderHikeId || "User"}: ${decryptedText}` : decryptedText;
                 setDecryptedLastMessages(prev => ({
                     ...prev,
-                    [contactId]: { text: decryptedText, msgId: msg._id }
+                    [contactId]: { text: sidebarText, msgId: msg._id }
                 }));
             }
 
@@ -674,37 +798,69 @@ export default function ChatPage() {
 
                 if (isActive) {
                     setMessages(prev => [...prev, { ...msg, text: "⚡ Sent a Nudge!" }]);
-                    const socketObj = getSocket();
-                    socketObj?.emit("mark_read", { senderId: msg.senderId });
+                    if (!isGroupMsg) {
+                        const socketObj = getSocket();
+                        socketObj?.emit("mark_read", { senderId: msg.senderId });
+                    }
                 }
             } else {
                 if (isActive) {
                     const newMsg = { ...msg, text: decryptedText, read: true };
                     setMessages(prev => [...prev, newMsg]);
-                    const socketObj = getSocket();
-                    socketObj?.emit("mark_read", { senderId: msg.senderId });
+                    if (!isGroupMsg) {
+                        const socketObj = getSocket();
+                        socketObj?.emit("mark_read", { senderId: msg.senderId });
+                    }
                 }
             }
 
             if (isPeerMessage && contactUser) {
                 const isTabHidden = typeof document !== "undefined" && document.visibilityState === "hidden";
+                const displayUser = isGroupMsg ? { ...contactUser, hikeId: `${msg.senderHikeId || "User"} @ ${contactUser.name}` } : contactUser;
                 if (isTabHidden || !isActive) {
-                    showDesktopNotification(contactUser, decryptedText, msg);
+                    showDesktopNotification(displayUser, decryptedText, msg);
                 }
                 if (!isTabHidden && !isActive) {
-                    addInAppToast(contactUser, decryptedText, msg);
+                    addInAppToast(displayUser, decryptedText, msg);
                 }
             }
         });
 
         socket?.on("message_sent", async (msg) => {
-            const contactId = isSameId(msg.senderId, parsedUser) ? msg.receiverId : msg.senderId;
-            let contactUser = allUsersRef.current.find(u => isSameId(u._id, contactId));
-            if (!contactUser) {
-                await fetchUsers();
+            const isGroupMsg = !!msg.groupId;
+            const contactId = isGroupMsg ? msg.groupId : (isSameId(msg.senderId, parsedUser) ? msg.receiverId : msg.senderId);
+
+            let contactUser;
+            if (isGroupMsg) {
+                contactUser = groups.find(g => isSameId(g._id, contactId));
+                if (!contactUser) {
+                    await fetchGroups();
+                    contactUser = groups.find(g => isSameId(g._id, contactId));
+                }
+            } else {
                 contactUser = allUsersRef.current.find(u => isSameId(u._id, contactId));
+                if (!contactUser) {
+                    await fetchUsers();
+                    contactUser = allUsersRef.current.find(u => isSameId(u._id, contactId));
+                }
             }
-            if (contactUser) {
+
+            if (isGroupMsg) {
+                setGroups(prev => {
+                    const filtered = prev.filter(c => !isSameId(c._id, contactId));
+                    const existing = prev.find(c => isSameId(c._id, contactId)) || contactUser;
+
+                    if (!existing) return prev;
+
+                    const updatedGroup = {
+                        ...existing,
+                        latestMessage: msg,
+                        unreadCount: existing.unreadCount || 0,
+                        isGroup: true
+                    };
+                    return [updatedGroup, ...filtered];
+                });
+            } else if (contactUser) {
                 setRecentChats(prev => {
                     const filtered = prev.filter(c => !isSameId(c._id, contactId));
                     const existing = prev.find(c => isSameId(c._id, contactId));
@@ -736,13 +892,18 @@ export default function ChatPage() {
                                 msg.iv,
                                 privateKey
                             );
-                        } catch {
-                            decryptedText = await decryptMessage(
-                                msg.encryptedAesKeyReceiver,
-                                msg.ciphertext,
-                                msg.iv,
-                                privateKey
-                            );
+                        } catch (err) {
+                            if (!isGroupMsg) {
+                                decryptedText = await decryptMessage(
+                                    msg.encryptedAesKeyReceiver,
+                                    msg.ciphertext,
+                                    msg.iv,
+                                    privateKey
+                                );
+                            } else {
+                                console.error("Sender failed group decryption:", err);
+                                decryptedText = "🔒 [Could not decrypt]";
+                            }
                         }
                         setMessages(prev => [...prev, { ...msg, text: decryptedText }]);
                     }
@@ -762,7 +923,8 @@ export default function ChatPage() {
         });
 
         socket?.on("message_edited", async (msg) => {
-            const contactId = isSameId(msg.senderId, parsedUser) ? msg.receiverId : msg.senderId;
+            const isGroupMsg = !!msg.groupId;
+            const contactId = isGroupMsg ? msg.groupId : (isSameId(msg.senderId, parsedUser) ? msg.receiverId : msg.senderId);
             const isActive = isSameId(contactId, activeChatRef.current);
 
             let decryptedText = "🔒 [Could not decrypt]";
@@ -770,26 +932,41 @@ export default function ChatPage() {
                 const privateKey = await getPrivateKey(parsedUser.hikeId);
                 if (privateKey) {
                     const isMine = isSameId(msg.senderId, parsedUser);
-                    const primaryKey = isMine ? msg.encryptedAesKeySender : msg.encryptedAesKeyReceiver;
-                    const fallbackKey = isMine ? msg.encryptedAesKeyReceiver : msg.encryptedAesKeySender;
+                    if (isGroupMsg) {
+                        const targetKey = isMine
+                            ? msg.encryptedAesKeySender
+                            : msg.groupAesKeys?.find(k => isSameId(k.userId, parsedUser))?.encryptedAesKey;
 
-                    try {
-                        decryptedText = await decryptMessage(
-                            primaryKey,
-                            msg.ciphertext,
-                            msg.iv,
-                            privateKey
-                        );
-                    } catch {
-                        try {
+                        if (targetKey) {
                             decryptedText = await decryptMessage(
-                                fallbackKey,
+                                targetKey,
                                 msg.ciphertext,
                                 msg.iv,
                                 privateKey
                             );
-                        } catch (err) {
-                            console.error("Failed to decrypt edited message with fallback key:", err);
+                        }
+                    } else {
+                        const primaryKey = isMine ? msg.encryptedAesKeySender : msg.encryptedAesKeyReceiver;
+                        const fallbackKey = isMine ? msg.encryptedAesKeyReceiver : msg.encryptedAesKeySender;
+
+                        try {
+                            decryptedText = await decryptMessage(
+                                primaryKey,
+                                msg.ciphertext,
+                                msg.iv,
+                                privateKey
+                            );
+                        } catch {
+                            try {
+                                decryptedText = await decryptMessage(
+                                    fallbackKey,
+                                    msg.ciphertext,
+                                    msg.iv,
+                                    privateKey
+                                );
+                            } catch (err) {
+                                console.error("Failed to decrypt edited message with fallback key:", err);
+                            }
                         }
                     }
                 }
@@ -811,13 +988,42 @@ export default function ChatPage() {
                 } catch { }
             }
 
-            let contactUser = allUsersRef.current.find(u => isSameId(u._id, contactId));
-            if (!contactUser) {
-                await fetchUsers();
+            let contactUser;
+            if (isGroupMsg) {
+                contactUser = groups.find(g => isSameId(g._id, contactId));
+                if (!contactUser) {
+                    await fetchGroups();
+                    contactUser = groups.find(g => isSameId(g._id, contactId));
+                }
+            } else {
                 contactUser = allUsersRef.current.find(u => isSameId(u._id, contactId));
+                if (!contactUser) {
+                    await fetchUsers();
+                    contactUser = allUsersRef.current.find(u => isSameId(u._id, contactId));
+                }
             }
 
-            if (contactUser) {
+            if (isGroupMsg) {
+                setGroups(prev => {
+                    const filtered = prev.filter(c => !isSameId(c._id, contactId));
+                    const existing = prev.find(c => isSameId(c._id, contactId)) || contactUser;
+
+                    if (!existing) return prev;
+
+                    let currentUnread = existing.unreadCount || 0;
+                    if (!isActive && isPeerMessage) {
+                        currentUnread += 1;
+                    }
+
+                    const updatedGroup = {
+                        ...existing,
+                        latestMessage: msg,
+                        unreadCount: currentUnread,
+                        isGroup: true
+                    };
+                    return [updatedGroup, ...filtered];
+                });
+            } else if (contactUser) {
                 setRecentChats(prev => {
                     const filtered = prev.filter(c => !isSameId(c._id, contactId));
                     const existing = prev.find(c => isSameId(c._id, contactId));
@@ -836,10 +1042,45 @@ export default function ChatPage() {
                 });
             }
 
+            const sidebarText = isGroupMsg ? `${msg.senderHikeId || "User"}: ${decryptedText}` : decryptedText;
             setDecryptedLastMessages(prev => ({
                 ...prev,
-                [contactId]: { text: decryptedText, msgId: msg._id }
+                [contactId]: { text: sidebarText, msgId: msg._id }
             }));
+        });
+
+        socket?.on("group_created", (newGroup) => {
+            setGroups(prev => {
+                if (prev.some(g => isSameId(g._id, newGroup._id))) return prev;
+                return [{ ...newGroup, isGroup: true, unreadCount: 0 }, ...prev];
+            });
+        });
+
+        socket?.on("group_messages_seen", ({ groupId, readerId }) => {
+            if (activeChatRef.current && isSameId(groupId, activeChatRef.current)) {
+                setMessages(prev => prev.map(m => {
+                    const readByArr = m.readBy || [];
+                    if (!readByArr.some(uid => isSameId(uid, readerId))) {
+                        return { ...m, readBy: [...readByArr, readerId] };
+                    }
+                    return m;
+                }));
+            }
+        });
+
+        socket?.on("group_updated", (updatedGroup) => {
+            setGroups(prev => prev.map(g => isSameId(g._id, updatedGroup._id) ? { ...updatedGroup, isGroup: true, unreadCount: g.unreadCount } : g));
+            if (activeChatRef.current && isSameId(updatedGroup._id, activeChatRef.current)) {
+                setActiveChat(prev => ({ ...prev, ...updatedGroup }));
+            }
+        });
+
+        socket?.on("group_removed", ({ groupId }) => {
+            setGroups(prev => prev.filter(g => !isSameId(g._id, groupId)));
+            if (activeChatRef.current && isSameId(groupId, activeChatRef.current)) {
+                setActiveChat(null);
+                alert("You have been removed from this group by the admin.");
+            }
         });
 
         socket?.on("online_users_list", (data) => {
@@ -936,7 +1177,7 @@ export default function ChatPage() {
 
     // ── Select a chat contact ───────────────────────────────
     const selectChat = useCallback((user) => {
-        if (activeChat) {
+        if (activeChat && !activeChat.isGroup) {
             const socket = getSocket();
             socket?.emit("typing", { receiverId: activeChat._id, isTyping: false });
         }
@@ -948,8 +1189,18 @@ export default function ChatPage() {
         setMessages([]); // Instantly clear chat area messages
         setActiveChat(user);
 
-        const socket = getSocket();
-        socket?.emit("mark_read", { senderId: user._id });
+        const token = localStorage.getItem("token");
+        if (user.isGroup) {
+            if (token) {
+                fetch(`${API_URL}/api/groups/read/${user._id}`, {
+                    method: "POST",
+                    headers: { Authorization: `Bearer ${token}` }
+                }).catch(err => console.error("Error marking group read:", err));
+            }
+        } else {
+            const socket = getSocket();
+            socket?.emit("mark_read", { senderId: user._id });
+        }
 
         if (messageInputRef.current) {
             messageInputRef.current.style.height = "auto";
@@ -958,19 +1209,23 @@ export default function ChatPage() {
             fetchHistory(user, currentUser);
         }
 
-        setRecentChats(prev => {
-            const exists = prev.find(c => isSameId(c._id, user._id));
-            if (exists) {
-                return prev.map(c => {
-                    if (isSameId(c._id, user._id)) {
-                        return { ...c, unreadCount: 0 };
-                    }
-                    return c;
-                });
-            } else {
-                return [...prev, { ...user, unreadCount: 0 }];
-            }
-        });
+        if (user.isGroup) {
+            setGroups(prev => prev.map(g => isSameId(g._id, user._id) ? { ...g, unreadCount: 0 } : g));
+        } else {
+            setRecentChats(prev => {
+                const exists = prev.find(c => isSameId(c._id, user._id));
+                if (exists) {
+                    return prev.map(c => {
+                        if (isSameId(c._id, user._id)) {
+                            return { ...c, unreadCount: 0 };
+                        }
+                        return c;
+                    });
+                } else {
+                    return [...prev, { ...user, unreadCount: 0 }];
+                }
+            });
+        }
 
         fetchUsers();
         fetchChatSettings();
@@ -1106,7 +1361,7 @@ export default function ChatPage() {
 
         if (!pendingFile && !messageInput.trim()) return;
 
-        if (!activeChat.publicKey) {
+        if (!activeChat.isGroup && !activeChat.publicKey) {
             alert("Cannot encrypt: peer has no public key.");
             return;
         }
@@ -1122,7 +1377,14 @@ export default function ChatPage() {
         if (editingMessage) {
             setIsSending(true);
             try {
-                const payload = await encryptMessage(messageInput, activeChat.publicKey, myPublicKey);
+                let payload;
+                if (activeChat.isGroup) {
+                    const membersKeys = activeChat.members.filter(m => !isSameId(m._id, currentUser._id)).map(m => ({ userId: m._id, publicKey: m.publicKey }));
+                    payload = await encryptGroupMessage(messageInput, membersKeys, myPublicKey);
+                } else {
+                    payload = await encryptMessage(messageInput, activeChat.publicKey, myPublicKey);
+                }
+
                 socket?.emit("edit_message", {
                     messageId: editingMessage._id,
                     ...payload,
@@ -1193,10 +1455,18 @@ export default function ChatPage() {
                 setUploadStatus("Securing and sending media message...");
 
                 const captionText = messageInput.trim() ? messageInput.trim() : `Sent a file: ${pendingFile.name}`;
-                const payload = await encryptMessage(captionText, activeChat.publicKey, myPublicKey);
+                
+                let payload;
+                if (activeChat.isGroup) {
+                    const membersKeys = activeChat.members.filter(m => !isSameId(m._id, currentUser._id)).map(m => ({ userId: m._id, publicKey: m.publicKey }));
+                    payload = await encryptGroupMessage(captionText, membersKeys, myPublicKey);
+                } else {
+                    payload = await encryptMessage(captionText, activeChat.publicKey, myPublicKey);
+                }
 
                 socket?.emit("send_message", {
-                    receiverId: activeChat._id,
+                    receiverId: activeChat.isGroup ? null : activeChat._id,
+                    groupId: activeChat.isGroup ? activeChat._id : null,
                     ...payload,
                     isNudge: false,
                     replyTo: replyingToMessage ? replyingToMessage._id : null,
@@ -1224,9 +1494,17 @@ export default function ChatPage() {
         } else {
             setIsSending(true);
             try {
-                const payload = await encryptMessage(messageInput, activeChat.publicKey, myPublicKey);
+                let payload;
+                if (activeChat.isGroup) {
+                    const membersKeys = activeChat.members.filter(m => !isSameId(m._id, currentUser._id)).map(m => ({ userId: m._id, publicKey: m.publicKey }));
+                    payload = await encryptGroupMessage(messageInput, membersKeys, myPublicKey);
+                } else {
+                    payload = await encryptMessage(messageInput, activeChat.publicKey, myPublicKey);
+                }
+
                 socket?.emit("send_message", {
-                    receiverId: activeChat._id,
+                    receiverId: activeChat.isGroup ? null : activeChat._id,
+                    groupId: activeChat.isGroup ? activeChat._id : null,
                     ...payload,
                     isNudge: false,
                     replyTo: replyingToMessage ? replyingToMessage._id : null,
@@ -1246,7 +1524,7 @@ export default function ChatPage() {
     // ── Send Nudge ──────────────────────────────────────────
     const sendNudge = async () => {
         if (!activeChat) return;
-        if (!activeChat.publicKey) {
+        if (!activeChat.isGroup && !activeChat.publicKey) {
             alert("Cannot send nudge: peer has no E2EE public key.");
             return;
         }
@@ -1256,8 +1534,20 @@ export default function ChatPage() {
         }
         const socket = getSocket();
         try {
-            const payload = await encryptMessage("NUDGE", activeChat.publicKey, currentUser.publicKey);
-            socket?.emit("send_message", { receiverId: activeChat._id, ...payload, isNudge: true });
+            let payload;
+            if (activeChat.isGroup) {
+                const membersKeys = activeChat.members.filter(m => !isSameId(m._id, currentUser._id)).map(m => ({ userId: m._id, publicKey: m.publicKey }));
+                payload = await encryptGroupMessage("NUDGE", membersKeys, currentUser.publicKey);
+            } else {
+                payload = await encryptMessage("NUDGE", activeChat.publicKey, currentUser.publicKey);
+            }
+
+            socket?.emit("send_message", {
+                receiverId: activeChat.isGroup ? null : activeChat._id,
+                groupId: activeChat.isGroup ? activeChat._id : null,
+                ...payload,
+                isNudge: true
+            });
         } catch (err) {
             console.error("Nudge failed:", err);
             alert(`Nudge failed: ${err.message}`);
@@ -1320,6 +1610,73 @@ export default function ChatPage() {
         } catch (err) {
             console.error("Regeneration failed", err);
             alert("Failed to regenerate keys.");
+        }
+    };
+
+    const handleCreateGroup = async (name, memberIds) => {
+        try {
+            const token = localStorage.getItem("token");
+            if (!token) return;
+
+            const res = await fetch(`${API_URL}/api/groups`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}`
+                },
+                body: JSON.stringify({ name, members: memberIds })
+            });
+
+            if (res.ok) {
+                const newGroup = await res.json();
+                newGroup.isGroup = true;
+                // Fetch groups again to sync
+                await fetchGroups();
+                // Select the new group chat
+                selectChat(newGroup);
+            } else {
+                const errData = await res.json();
+                throw new Error(errData.error || "Failed to create group");
+            }
+        } catch (err) {
+            console.error("Create group error:", err);
+            alert(`Failed to create group: ${err.message}`);
+        }
+    };
+
+    const handleUpdateGroup = async (groupId, name, memberIds) => {
+        try {
+            const token = localStorage.getItem("token");
+            if (!token) return;
+
+            const res = await fetch(`${API_URL}/api/groups/${groupId}`, {
+                method: "PUT",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}`
+                },
+                body: JSON.stringify({ name, members: memberIds })
+            });
+
+            if (res.ok) {
+                const updatedGroup = await res.json();
+                updatedGroup.isGroup = true;
+                
+                // Update groups list locally
+                setGroups(prev => prev.map(g => isSameId(g._id, updatedGroup._id) ? { ...updatedGroup, unreadCount: g.unreadCount } : g));
+                
+                // Update active chat if it is the current one
+                if (activeChatRef.current && isSameId(updatedGroup._id, activeChatRef.current)) {
+                    setActiveChat(prev => ({ ...prev, ...updatedGroup }));
+                }
+            } else {
+                const errData = await res.json();
+                throw new Error(errData.error || "Failed to update group");
+            }
+        } catch (err) {
+            console.error("Update group error:", err);
+            alert(`Failed to update group details: ${err.message}`);
+            throw err;
         }
     };
 
@@ -1570,6 +1927,8 @@ export default function ChatPage() {
                 handleLogout={handleLogout}
                 checkPrivateKey={checkPrivateKey}
                 setIsSettingsOpen={setIsSettingsOpen}
+                groups={groups}
+                setIsCreateGroupOpen={setIsCreateGroupOpen}
             />
 
             {/* Main Chat Area */}
@@ -1578,6 +1937,7 @@ export default function ChatPage() {
                 setActiveChat={setActiveChat}
                 currentUser={currentUser}
                 messages={messages}
+                onViewDetails={() => setIsChatDetailsOpen(true)}
                 typingUsers={typingUsers}
                 onlineStatuses={onlineStatuses}
                 startCall={startCall}
@@ -1683,6 +2043,33 @@ export default function ChatPage() {
                     <LightboxModal
                         activeLightboxImage={activeLightboxImage}
                         setActiveLightboxImage={setActiveLightboxImage}
+                    />
+                )}
+            </AnimatePresence>
+
+            <AnimatePresence>
+                {isCreateGroupOpen && (
+                    <CreateGroupModal
+                        allUsers={allUsers}
+                        currentUser={currentUser}
+                        isOpen={isCreateGroupOpen}
+                        onClose={() => setIsCreateGroupOpen(false)}
+                        onCreateGroup={handleCreateGroup}
+                    />
+                )}
+            </AnimatePresence>
+
+            <AnimatePresence>
+                {isChatDetailsOpen && (
+                    <ChatDetailsModal
+                        activeChat={activeChat}
+                        currentUser={currentUser}
+                        allUsers={allUsers}
+                        onlineStatuses={onlineStatuses}
+                        formatLastSeenText={formatLastSeenText}
+                        isOpen={isChatDetailsOpen}
+                        onClose={() => setIsChatDetailsOpen(false)}
+                        onUpdateGroup={handleUpdateGroup}
                     />
                 )}
             </AnimatePresence>

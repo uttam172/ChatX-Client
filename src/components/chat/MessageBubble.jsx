@@ -147,6 +147,11 @@ export default function MessageBubble({
             )}
 
             {/* Message Bubble itself */}
+            {!isMine && activeChat?.isGroup && (
+                <span className="text-[11px] font-bold text-indigo-500 mb-0.5 ml-1 select-none">
+                    {msg.senderHikeId || (typeof msg.senderId === 'object' && msg.senderId?.hikeId) || "User"}
+                </span>
+            )}
             <motion.div
                 initial={{ opacity: 0, y: 8, scale: 0.96 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -160,13 +165,18 @@ export default function MessageBubble({
                 {/* Reply Quote Block inside bubble */}
                 {msg.replyTo && (() => {
                     const parentMsg = messages.find(m => m._id === msg.replyTo);
+                    const parentSenderName = parentMsg 
+                        ? (isSameId(parentMsg.senderId, currentUser) 
+                            ? "You" 
+                            : (parentMsg.senderHikeId || (typeof parentMsg.senderId === 'object' && parentMsg.senderId?.hikeId) || activeChat.hikeId)) 
+                        : "Secure Reply";
                     return (
                         <div className={`text-xs p-2 mb-1.5 rounded-xl border-l-4 font-medium flex flex-col gap-0.5 max-w-full truncate ${isMine
                             ? "bg-indigo-700/40 border-indigo-400 text-indigo-100"
                             : "bg-muted/80 border-indigo-500 text-muted-foreground"
                             }`}>
                             <span className="text-[9px] font-bold uppercase tracking-wider opacity-85">
-                                {parentMsg ? (isSameId(parentMsg.senderId, currentUser) ? "You" : activeChat.hikeId) : "Secure Reply"}
+                                {parentSenderName}
                             </span>
                             <span className="truncate italic text-[11px] opacity-90">
                                 {parentMsg ? parentMsg.text : "🔒 Quoted message is unavailable"}
@@ -213,39 +223,39 @@ export default function MessageBubble({
                         {formatBubbleTime(msg.createdAt)}
                     </span>
                 </div>
-            </motion.div>
 
-            {/* Reactions Badges at Corner (Futuristic Half-in, Half-out) */}
-            {msg.reactions && msg.reactions.length > 0 && (
-                <motion.div
-                    initial={{ opacity: 0, scale: 0.75, y: 5 }}
-                    animate={{ opacity: 1, scale: 1, y: 0 }}
-                    exit={{ opacity: 0, scale: 0.75, y: 5 }}
-                    className={`absolute -bottom-2.5 flex items-center gap-0.5 bg-card/95 border border-border shadow-md rounded-full px-1.5 py-0.5 z-20 select-none backdrop-blur-md transition-all hover:scale-110 duration-150 cursor-pointer ${
-                        isMine ? "right-3.5" : "left-3.5"
-                    }`}
-                >
-                    {Array.from(new Set(msg.reactions.map(r => r.emoji))).map((emoji, eIdx) => (
-                        <span
-                            key={eIdx}
-                            className="text-xs transition-transform hover:scale-125 duration-100"
-                            title={msg.reactions.filter(r => r.emoji === emoji).map(r => isSameId(r.userId, currentUser) ? "You" : activeChat.hikeId).join(", ")}
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                const socket = getSocket();
-                                socket?.emit("react_to_message", { messageId: msg._id, emoji });
-                            }}
-                        >
-                            {emoji}
-                        </span>
-                    ))}
-                    {msg.reactions.length > 1 && (
-                        <span className="text-[10px] font-extrabold text-muted-foreground ml-0.5">
-                            {msg.reactions.length}
-                        </span>
-                    )}
-                </motion.div>
-            )}
+                {/* Reactions Badges at Corner (Futuristic Half-in, Half-out) */}
+                {msg.reactions && msg.reactions.length > 0 && (
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.75, y: 5 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.75, y: 5 }}
+                        className={`absolute -bottom-2.5 flex items-center gap-0.5 bg-card/95 border border-border shadow-md rounded-full px-1.5 py-0.5 z-20 select-none backdrop-blur-md transition-all hover:scale-110 duration-150 cursor-pointer ${
+                            isMine ? "right-3.5" : "left-3.5"
+                        }`}
+                    >
+                        {Array.from(new Set(msg.reactions.map(r => r.emoji))).map((emoji, eIdx) => (
+                            <span
+                                key={eIdx}
+                                className="text-xs transition-transform hover:scale-125 duration-100"
+                                title={msg.reactions.filter(r => r.emoji === emoji).map(r => isSameId(r.userId, currentUser) ? "You" : activeChat.hikeId).join(", ")}
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    const socket = getSocket();
+                                    socket?.emit("react_to_message", { messageId: msg._id, emoji });
+                                }}
+                            >
+                                {emoji}
+                            </span>
+                        ))}
+                        {msg.reactions.length > 1 && (
+                            <span className="text-[10px] font-extrabold text-muted-foreground ml-0.5">
+                                {msg.reactions.length}
+                            </span>
+                        )}
+                    </motion.div>
+                )}
+            </motion.div>
         </div>
     );
 }

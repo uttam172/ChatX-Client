@@ -24,6 +24,36 @@ export default function MessageList({
     setActiveLightboxImage,
     messagesEndRef
 }) {
+    const groupLastReadUsers = React.useMemo(() => {
+        if (!activeChat?.isGroup || !messages.length) return {};
+        
+        const indices = {};
+        const groupMembers = activeChat.members || [];
+        
+        groupMembers.forEach(member => {
+            if (isSameId(member._id, currentUser._id)) return;
+            
+            let lastIdx = -1;
+            for (let i = messages.length - 1; i >= 0; i--) {
+                const msg = messages[i];
+                const isSender = isSameId(msg.senderId, member._id);
+                const isRead = msg.readBy?.some(uid => isSameId(uid, member._id));
+                
+                if (isSender || isRead) {
+                    lastIdx = i;
+                    break;
+                }
+            }
+            
+            if (lastIdx !== -1) {
+                if (!indices[lastIdx]) indices[lastIdx] = [];
+                indices[lastIdx].push(member);
+            }
+        });
+        
+        return indices;
+    }, [messages, activeChat, currentUser]);
+
     return (
         <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-3">
             {messages.length === 0 && (
@@ -103,13 +133,31 @@ export default function MessageList({
                                 />
                             )}
                             
-                            {idx === lastSeenMyMessageIndex && (
+                            {idx === lastSeenMyMessageIndex && !activeChat?.isGroup && (
                                 <motion.div
                                     initial={{ opacity: 0, y: -2 }}
                                     animate={{ opacity: 1, y: 0 }}
                                     className="text-[10px] text-indigo-500 font-bold dark:text-indigo-400 select-none self-end pr-2.5 -mt-2 mb-1"
                                 >
                                     Seen
+                                </motion.div>
+                            )}
+
+                            {activeChat?.isGroup && groupLastReadUsers[idx] && groupLastReadUsers[idx].length > 0 && (
+                                <motion.div
+                                    initial={{ opacity: 0, y: -2 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    className="flex items-center gap-0.5 select-none self-end pr-2.5 -mt-2 mb-1"
+                                >
+                                    {groupLastReadUsers[idx].map((u) => (
+                                        <img
+                                            key={u._id}
+                                            src={`https://api.dicebear.com/7.x/initials/svg?seed=${u.hikeId}&radius=50&backgroundType=gradientLinear`}
+                                            alt={u.hikeId}
+                                            className="w-4 h-4 rounded-full border border-border shadow-xs shrink-0"
+                                            title={`Seen by @${u.hikeId}`}
+                                        />
+                                    ))}
                                 </motion.div>
                             )}
                         </React.Fragment>

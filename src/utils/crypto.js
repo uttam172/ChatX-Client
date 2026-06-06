@@ -340,3 +340,64 @@ export const decryptPrivateKeyWithPassword = async (
         ['decrypt']
     );
 };
+
+/**
+ * Encrypts a message for a group using a single AES key and wraps it for all members.
+ */
+export const encryptGroupMessage = async (
+    text,
+    membersPublicKeys,
+    senderPublicKeyBase64
+) => {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(text);
+
+    // 1. Generate an ephemeral AES-GCM key for this specific message
+    const aesKey = await window.crypto.subtle.generateKey(AES_ALGO, true, ['encrypt', 'decrypt']);
+
+    // 2. Encrypt the message with AES-GCM
+    const iv = window.crypto.getRandomValues(new Uint8Array(12));
+    const encryptedContentBuffer = await window.crypto.subtle.encrypt(
+        { name: 'AES-GCM', iv },
+        aesKey,
+        data
+    );
+
+    // 3. Export the AES key so we can wrap (encrypt) it with RSA
+    const exportedAesKey = await window.crypto.subtle.exportKey('raw', aesKey);
+
+    // 4. Import sender public key and encrypt for sender
+    const senderPubKey = await importPublicKey(senderPublicKeyBase64);
+    const encryptedAesKeySenderBuffer = await window.crypto.subtle.encrypt(
+        { name: 'RSA-OAEP' },
+        senderPubKey,
+        exportedAesKey
+    );
+
+    // 5. Encrypt for all other group members
+    const groupAesKeys = [];
+    for (const member of membersPublicKeys) {
+        try {
+            if (!member.publicKey) continue;
+            const memberPubKey = await importPublicKey(member.publicKey);
+            const encryptedBuf = await window.crypto.subtle.encrypt(
+                { name: 'RSA-OAEP' },
+                memberPubKey,
+                exportedAesKey
+            );
+            groupAesKeys.push({
+                userId: member.userId,
+                encryptedAesKey: arrayBufferToBase64(encryptedBuf),
+            });
+        } catch (err) {
+            console.error(`Failed to encrypt key for group member ${member.userId}:`, err);
+        }
+    }
+
+    return {
+        ciphertext: arrayBufferToBase64(encryptedContentBuffer),
+        iv: arrayBufferToBase64(iv.buffer),
+        encryptedAesKeySender: arrayBufferToBase64(encryptedAesKeySenderBuffer),
+        groupAesKeys,
+    };
+};

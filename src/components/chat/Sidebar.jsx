@@ -3,7 +3,7 @@ import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import {
     Search, Lock, Unlock, AlignStartVertical, AlignEndVertical,
-    X, Loader2, LogOut, Bell, BellOff, BellRing
+    X, Loader2, LogOut, Bell, BellOff, BellRing, UserPlus
 } from "lucide-react";
 import { logo } from "@/assets/logo";
 import { isSameId, formatMessageTime } from "@/utils/chatHelpers";
@@ -34,7 +34,9 @@ export default function Sidebar({
     isNotificationMuted,
     handleLogout,
     checkPrivateKey,
-    setIsSettingsOpen
+    setIsSettingsOpen,
+    groups = [],
+    setIsCreateGroupOpen
 }) {
 
     // Unified user list sorted like WhatsApp: recent conversation partners at the top, others below
@@ -54,6 +56,9 @@ export default function Sidebar({
                 return isVaultOpen || !isHidden;
             });
 
+        // Filter groups (they are always visible to members)
+        const activeGroups = groups.map(g => ({ ...g, isGroup: true }));
+
         // Other users who don't have conversations yet
         const otherUsers = allUsers
             .filter(user => !isSameId(user._id, currentUser))
@@ -63,8 +68,16 @@ export default function Sidebar({
                 return isVaultOpen || !isHidden;
             });
 
-        return [...activeChats, ...otherUsers];
-    }, [allUsers, recentChats, chatSettings, isVaultOpen]);
+        // Combine active 1-on-1 chats and groups, then sort chronologically by latest message
+        const combinedActive = [...activeChats, ...activeGroups];
+        combinedActive.sort((a, b) => {
+            const timeA = a.latestMessage ? new Date(a.latestMessage.createdAt).getTime() : 0;
+            const timeB = b.latestMessage ? new Date(b.latestMessage.createdAt).getTime() : 0;
+            return timeB - timeA;
+        });
+
+        return [...combinedActive, ...otherUsers];
+    }, [allUsers, recentChats, groups, chatSettings, isVaultOpen, currentUser]);
 
     // Filter unified users based on the debounced search query
     const filteredUsers = useMemo(() => {
@@ -73,8 +86,9 @@ export default function Sidebar({
         }
         const query = debouncedSearchQuery.toLowerCase().replace(/^@/, '');
         return sortedUnifiedUsers.filter(user =>
-            user.hikeId.toLowerCase().includes(query) ||
-            (user.email && user.email.toLowerCase().includes(query))
+            user.isGroup
+                ? user.name.toLowerCase().includes(query)
+                : (user.hikeId.toLowerCase().includes(query) || (user.email && user.email.toLowerCase().includes(query)))
         );
     }, [sortedUnifiedUsers, debouncedSearchQuery]);
 
@@ -101,6 +115,15 @@ export default function Sidebar({
                                 title="Lock Vault"
                             >
                                 <Unlock className="w-4 h-4" />
+                            </button>
+                        )}
+                        {!isSidebarCollapsed && (
+                            <button
+                                onClick={() => setIsCreateGroupOpen(true)}
+                                className="p-1.5 rounded-full hover:bg-muted text-muted-foreground hover:text-indigo-500 transition-all cursor-pointer"
+                                title="Create Group"
+                            >
+                                <UserPlus className="w-5 h-5" />
                             </button>
                         )}
                         <button
@@ -204,8 +227,8 @@ export default function Sidebar({
                                             {/* Dynamic DiceBear Profile Avatar */}
                                             {/* eslint-disable-next-line @next/next/no-img-element */}
                                             <img
-                                                src={`https://api.dicebear.com/7.x/initials/svg?seed=${user.hikeId}&radius=50&backgroundType=gradientLinear`}
-                                                alt={user.hikeId}
+                                                src={`https://api.dicebear.com/7.x/initials/svg?seed=${user.isGroup ? user.name : user.hikeId}&radius=50&backgroundType=gradientLinear`}
+                                                alt={user.isGroup ? user.name : user.hikeId}
                                                 className="w-11 h-11 rounded-full object-cover border border-border shadow-sm shrink-0"
                                             />
 
@@ -213,7 +236,7 @@ export default function Sidebar({
                                             <div className="flex-1 min-w-0 overflow-hidden animate-fade-in">
                                                 <div className="flex justify-between items-baseline mb-0.5">
                                                     <p className={`font-semibold text-sm truncate ${user.unreadCount > 0 ? "text-indigo-600 font-bold dark:text-indigo-400" : "text-foreground"}`}>
-                                                        {user.hikeId}
+                                                        {user.isGroup ? user.name : user.hikeId}
                                                     </p>
                                                     {latestMsg && (
                                                         <span className={`text-[10px] shrink-0 font-medium ml-1 ${user.unreadCount > 0 ? "text-indigo-600 font-bold dark:text-indigo-400" : "text-muted-foreground"}`}>

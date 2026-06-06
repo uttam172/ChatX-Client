@@ -15,7 +15,8 @@ export default function ChatHeader({
     handleClearChat,
     handleToggleHideChat,
     chatSettings,
-    setIsE2EEInfoOpen
+    setIsE2EEInfoOpen,
+    onViewDetails
 }) {
     const isTyping = typingUsers[activeChat._id];
     const userStatus = onlineStatuses[activeChat._id];
@@ -29,58 +30,79 @@ export default function ChatHeader({
             <div className="flex items-center gap-3">
                 {/* Mobile Back Button */}
                 <button
-                    onClick={() => setActiveChat(null)}
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        setActiveChat(null);
+                    }}
                     className="md:hidden p-1.5 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground transition-colors mr-1 cursor-pointer"
                     title="Back to Chats"
                 >
                     <ChevronLeft className="w-6 h-6" />
                 </button>
 
-                <div className="w-10 h-10 rounded-full bg-linear-to-br from-indigo-400 to-purple-500 flex items-center justify-center text-white font-bold">
-                    {activeChat.hikeId.charAt(0).toUpperCase()}
-                </div>
-                <div>
-                    <h2 className="font-semibold text-foreground leading-tight">{activeChat.hikeId}</h2>
-                    {(() => {
-                        if (isTyping) {
-                            return (
-                                <p className="text-xs text-indigo-500 dark:text-indigo-400 font-semibold animate-pulse italic leading-none mt-1">
-                                    typing...
-                                </p>
-                            );
-                        } else if (isOnline) {
-                            return (
-                                <p className="text-xs text-emerald-500 flex items-center gap-1 font-medium leading-none mt-1">
-                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block animate-pulse shrink-0" />
-                                    Active now
-                                </p>
-                            );
-                        } else {
-                            return (
-                                <p className="text-xs text-muted-foreground font-normal leading-none mt-1">
-                                    {formatLastSeenText(lastSeen)}
-                                </p>
-                            );
-                        }
-                    })()}
+                <div
+                    onClick={onViewDetails}
+                    className="flex items-center gap-3 cursor-pointer select-none hover:opacity-85 active:scale-98 transition-all duration-150"
+                    title={activeChat.isGroup ? "View Group Details" : "View User Details"}
+                >
+                    <div className="w-10 h-10 rounded-full bg-linear-to-br from-indigo-400 to-purple-500 flex items-center justify-center text-white font-bold shrink-0 shadow-xs border border-border/40">
+                        {(activeChat.isGroup ? activeChat.name : activeChat.hikeId).charAt(0).toUpperCase()}
+                    </div>
+                    <div>
+                        <h2 className="font-semibold text-foreground leading-tight hover:text-indigo-500 transition-colors">
+                            {activeChat.isGroup ? activeChat.name : activeChat.hikeId}
+                        </h2>
+                        {(() => {
+                            if (activeChat.isGroup) {
+                                return (
+                                    <p className="text-xs text-muted-foreground font-normal leading-none mt-1">
+                                        Group • {activeChat.members?.length || 0} members
+                                    </p>
+                                );
+                            } else if (isTyping) {
+                                return (
+                                    <p className="text-xs text-indigo-500 dark:text-indigo-400 font-semibold animate-pulse italic leading-none mt-1">
+                                        typing...
+                                    </p>
+                                );
+                            } else if (isOnline) {
+                                return (
+                                    <p className="text-xs text-emerald-500 flex items-center gap-1 font-medium leading-none mt-1">
+                                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block animate-pulse shrink-0" />
+                                        Active now
+                                    </p>
+                                );
+                            } else {
+                                return (
+                                    <p className="text-xs text-muted-foreground font-normal leading-none mt-1">
+                                        {formatLastSeenText(lastSeen)}
+                                    </p>
+                                );
+                            }
+                        })()}
+                    </div>
                 </div>
             </div>
             <div className="flex items-center gap-3 text-muted-foreground relative">
-                <button
-                    onClick={() => startCall("voice")}
-                    className="hover:text-indigo-500 transition-colors cursor-pointer"
-                    title="Voice Call"
-                >
-                    <Phone className="w-5 h-5" />
-                </button>
+                {!activeChat.isGroup && (
+                    <>
+                        <button
+                            onClick={() => startCall("voice")}
+                            className="hover:text-indigo-500 transition-colors cursor-pointer"
+                            title="Voice Call"
+                        >
+                            <Phone className="w-5 h-5" />
+                        </button>
 
-                <button
-                    onClick={() => startCall("video")}
-                    className="hover:text-indigo-500 transition-colors cursor-pointer"
-                    title="Video Call"
-                >
-                    <Video className="w-5 h-5" />
-                </button>
+                        <button
+                            onClick={() => startCall("video")}
+                            className="hover:text-indigo-500 transition-colors cursor-pointer"
+                            title="Video Call"
+                        >
+                            <Video className="w-5 h-5" />
+                        </button>
+                    </>
+                )}
 
                 <div className="relative">
                     <button
@@ -106,30 +128,34 @@ export default function ChatHeader({
                                     transition={{ duration: 0.15 }}
                                     className="absolute right-0 mt-2 w-52 bg-card border border-border rounded-xl shadow-2xl py-1.5 z-40 text-foreground"
                                 >
-                                    <button
-                                        onClick={handleClearChat}
-                                        className="w-full text-left px-4 py-2 text-sm hover:bg-rose-500/10 text-rose-500 flex items-center gap-2.5 transition-colors font-medium cursor-pointer"
-                                    >
-                                        <Trash className="w-4 h-4" />
-                                        Clear Chat History
-                                    </button>
+                                    {!activeChat.isGroup && (
+                                        <>
+                                            <button
+                                                onClick={handleClearChat}
+                                                className="w-full text-left px-4 py-2 text-sm hover:bg-rose-500/10 text-rose-500 flex items-center gap-2.5 transition-colors font-medium cursor-pointer"
+                                            >
+                                                <Trash className="w-4 h-4" />
+                                                Clear Chat History
+                                            </button>
 
-                                    <button
-                                        onClick={handleToggleHideChat}
-                                        className="w-full text-left px-4 py-2 text-sm hover:bg-muted text-foreground flex items-center gap-2.5 transition-colors font-medium cursor-pointer"
-                                    >
-                                        {isChatHidden ? (
-                                            <>
-                                                <Unlock className="w-4 h-4 text-indigo-500" />
-                                                Unhide Conversation
-                                            </>
-                                        ) : (
-                                            <>
-                                                <Lock className="w-4 h-4 text-indigo-500" />
-                                                Hide Conversation
-                                            </>
-                                        )}
-                                    </button>
+                                            <button
+                                                onClick={handleToggleHideChat}
+                                                className="w-full text-left px-4 py-2 text-sm hover:bg-muted text-foreground flex items-center gap-2.5 transition-colors font-medium cursor-pointer"
+                                            >
+                                                {isChatHidden ? (
+                                                    <>
+                                                        <Unlock className="w-4 h-4 text-indigo-500" />
+                                                        Unhide Conversation
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <Lock className="w-4 h-4 text-indigo-500" />
+                                                        Hide Conversation
+                                                    </>
+                                                )}
+                                            </button>
+                                        </>
+                                    )}
 
                                     <button
                                         onClick={() => {
