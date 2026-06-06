@@ -69,6 +69,31 @@ export default function MessageList({
                     const isMine = isSameId(msg.senderId, currentUser);
                     const isFirstUnread = firstUnreadMessageId && msg._id === firstUnreadMessageId;
 
+                    const senderUser = (() => {
+                        if (isMine) return currentUser;
+                        if (activeChat?.isGroup) {
+                            return activeChat.members?.find(m => isSameId(m._id, msg.senderId)) || {
+                                _id: msg.senderId,
+                                hikeId: msg.senderHikeId || "User"
+                            };
+                        }
+                        return activeChat;
+                    })();
+
+                    const showAvatar = (() => {
+                        if (msg.isNudge) return false;
+                        const nextMsg = messages[idx + 1];
+                        if (!nextMsg) return true;
+                        if (nextMsg.isNudge) return true;
+                        if (!isSameId(nextMsg.senderId, msg.senderId)) return true;
+
+                        const prevDate = new Date(msg.createdAt).toDateString();
+                        const nextDate = new Date(nextMsg.createdAt).toDateString();
+                        if (prevDate !== nextDate) return true;
+
+                        return false;
+                    })();
+
                     return (
                         <React.Fragment key={msg._id || idx}>
                             {(() => {
@@ -131,6 +156,8 @@ export default function MessageList({
                                     handleMessageMouseEnter={handleMessageMouseEnter}
                                     handleMessageMouseLeave={handleMessageMouseLeave}
                                     setActiveLightboxImage={setActiveLightboxImage}
+                                    showAvatar={showAvatar}
+                                    senderUser={senderUser}
                                 />
                             )}
                             

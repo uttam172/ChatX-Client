@@ -4,6 +4,7 @@ import { Smile, CornerUpLeft, Pencil, Trash } from "lucide-react";
 import { getSocket } from "@/utils/socket";
 import { isSameId, getEmojiOnlyCount, formatBubbleTime } from "@/utils/chatHelpers";
 import MediaAttachment from "./MediaAttachment";
+import Avatar from "./Avatar";
 
 export default function MessageBubble({
     msg,
@@ -21,7 +22,9 @@ export default function MessageBubble({
     messageInputRef,
     handleMessageMouseEnter,
     handleMessageMouseLeave,
-    setActiveLightboxImage
+    setActiveLightboxImage,
+    showAvatar,
+    senderUser
 }) {
     const isMine = isSameId(msg.senderId, currentUser);
     const emojiCount = getEmojiOnlyCount(msg.text);
@@ -45,7 +48,7 @@ export default function MessageBubble({
         <div
             onMouseEnter={() => handleMessageMouseEnter(msg._id)}
             onMouseLeave={() => handleMessageMouseLeave(msg._id)}
-            className={`flex flex-col relative max-w-[75%] group mb-2.5 ${isMine ? "self-end items-end" : "self-start items-start"}`}
+            className={`flex flex-col relative max-w-[85%] group mb-2.5 ${isMine ? "self-end items-end" : "self-start items-start"}`}
         >
             {/* Floating Reaction & Action Bar */}
             {hoveredMessageId === msg._id && (
@@ -146,22 +149,37 @@ export default function MessageBubble({
                 </div>
             )}
 
-            {/* Message Bubble itself */}
-            {!isMine && activeChat?.isGroup && (
-                <span className="text-[11px] font-bold text-indigo-500 mb-0.5 ml-1 select-none">
-                    {msg.senderHikeId || (typeof msg.senderId === 'object' && msg.senderId?.hikeId) || "User"}
-                </span>
-            )}
-            <motion.div
-                initial={{ opacity: 0, y: 8, scale: 0.96 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                transition={{ type: "spring", bounce: 0.25, duration: 0.3 }}
-                className={isOnlyEmoji
-                    ? `relative p-0 select-none bg-transparent border-none shadow-none ${isMine ? "text-right" : "text-left"}`
-                    : `px-4 py-2.5 rounded-2xl shadow-xs relative ${isMine
-                        ? "bg-indigo-600 text-white rounded-tr-sm"
-                        : "bg-card text-foreground rounded-tl-sm border border-border"}`}
-            >
+            {/* Horizontal Container for Avatar + Message */}
+            <div className={`flex items-end gap-2.5 max-w-full ${isMine ? "flex-row-reverse" : "flex-row"}`}>
+
+                {/* Profile Icon / Spacer */}
+                {showAvatar ? (
+                    <Avatar 
+                        user={senderUser} 
+                        className="w-7 h-7 border border-border shadow-xs shrink-0 select-none cursor-pointer mb-0.5 animate-fade-in"
+                        title={`@${senderUser?.hikeId || "User"}`}
+                    />
+                ) : (
+                    <div className="w-7 h-7 shrink-0" />
+                )}
+
+                {/* Vertical Stack: Sender Name (if group & !isMine) + Bubble */}
+                <div className={`flex flex-col min-w-0 ${isMine ? "items-end" : "items-start"}`}>
+                    {!isMine && activeChat?.isGroup && (
+                        <span className="text-[11px] font-bold text-indigo-500 mb-0.5 ml-1 select-none">
+                            {msg.senderHikeId || (typeof msg.senderId === 'object' && msg.senderId?.hikeId) || "User"}
+                        </span>
+                    )}
+                    <motion.div
+                        initial={{ opacity: 0, y: 8, scale: 0.96 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        transition={{ type: "spring", bounce: 0.25, duration: 0.3 }}
+                        className={isOnlyEmoji
+                            ? `relative p-0 select-none bg-transparent border-none shadow-none ${isMine ? "text-right" : "text-left"}`
+                            : `px-4 py-2.5 rounded-2xl shadow-xs relative ${isMine
+                                ? "bg-indigo-600 text-white rounded-br-sm"
+                                : "bg-card text-foreground rounded-bl-sm border border-border"}`}
+                    >
                 {/* Reply Quote Block inside bubble */}
                 {msg.replyTo && (() => {
                     const parentMsg = messages.find(m => m._id === msg.replyTo);
@@ -256,6 +274,8 @@ export default function MessageBubble({
                     </motion.div>
                 )}
             </motion.div>
+                </div>
+            </div>
         </div>
     );
 }
