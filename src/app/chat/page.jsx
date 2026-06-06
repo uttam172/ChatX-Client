@@ -776,11 +776,14 @@ export default function ChatPage() {
             fetchUsers();
         }, 0);
         initiateSocketConnection(token);
-
         const socket = getSocket();
 
         socket?.on("receive_message", async (msg) => {
             const isGroupMsg = !!msg.groupId;
+            // Ignore private messages that do not involve the current user
+            if (!isGroupMsg && !isSameId(msg.senderId, parsedUser) && !isSameId(msg.receiverId, parsedUser)) {
+                return;
+            }
             const contactId = isGroupMsg ? msg.groupId : (isSameId(msg.senderId, parsedUser) ? msg.receiverId : msg.senderId);
 
             let contactUser;
@@ -959,6 +962,10 @@ export default function ChatPage() {
 
         socket?.on("message_sent", async (msg) => {
             const isGroupMsg = !!msg.groupId;
+            // Ignore private messages that do not involve the current user
+            if (!isGroupMsg && !isSameId(msg.senderId, parsedUser) && !isSameId(msg.receiverId, parsedUser)) {
+                return;
+            }
             const contactId = isGroupMsg ? msg.groupId : (isSameId(msg.senderId, parsedUser) ? msg.receiverId : msg.senderId);
 
             let contactUser;
@@ -1055,6 +1062,10 @@ export default function ChatPage() {
 
         socket?.on("message_edited", async (msg) => {
             const isGroupMsg = !!msg.groupId;
+            // Ignore private messages that do not involve the current user
+            if (!isGroupMsg && !isSameId(msg.senderId, parsedUser) && !isSameId(msg.receiverId, parsedUser)) {
+                return;
+            }
             const contactId = isGroupMsg ? msg.groupId : (isSameId(msg.senderId, parsedUser) ? msg.receiverId : msg.senderId);
             const isActive = isSameId(contactId, activeChatRef.current);
 
