@@ -11,6 +11,8 @@ export default function CallOverlay({
     isCameraOn,
     setIsCameraOn,
     endCall,
+    acceptCall,
+    declineCall,
     activeChat
 }) {
     if (callStatus === "disconnected" || !activeChat) return null;
@@ -19,7 +21,9 @@ export default function CallOverlay({
         <div className="fixed inset-0 bg-slate-950/95 backdrop-blur-xl flex flex-col justify-between p-8 z-50 text-white animate-fade-in">
             <div className="flex justify-between items-center">
                 <span className="text-xs font-bold tracking-widest text-slate-400 uppercase">
-                    {callType === "video" ? "Secure E2EE Video Call" : "Secure E2EE Voice Call"}
+                    {callStatus === "incoming" 
+                        ? (callType === "video" ? "Incoming E2EE Video Call" : "Incoming E2EE Voice Call")
+                        : (callType === "video" ? "Secure E2EE Video Call" : "Secure E2EE Voice Call")}
                 </span>
                 <div className="flex items-center gap-1.5 bg-emerald-500/10 text-emerald-400 px-3.5 py-1.5 rounded-full text-xs font-semibold border border-emerald-500/20">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
@@ -71,48 +75,71 @@ export default function CallOverlay({
                 )}
 
                 <div className="mt-8 text-center relative z-10">
-                    <h3 className="text-3xl font-black tracking-tight">{activeChat.hikeId}</h3>
+                    <h3 className="text-3xl font-black tracking-tight">@{activeChat.hikeId}</h3>
                     <p className="text-xs text-indigo-400 mt-2 tracking-widest uppercase font-black">
-                        {callStatus === "calling" ? "Calling..." : "Connected — " + Math.floor(callTimer / 60).toString().padStart(2, "0") + ":" + (callTimer % 60).toString().padStart(2, "0")}
+                        {callStatus === "incoming" 
+                            ? "Incoming Request..." 
+                            : callStatus === "calling" 
+                                ? "Calling..." 
+                                : "Connected — " + Math.floor(callTimer / 60).toString().padStart(2, "0") + ":" + (callTimer % 60).toString().padStart(2, "0")}
                     </p>
                 </div>
             </div>
 
-            <div className="flex items-center justify-center gap-6 py-4 border-t border-slate-900">
-                <button
-                    onClick={() => setIsMuted(prev => !prev)}
-                    className={"p-4 rounded-full transition-all border cursor-pointer " +
-                        (isMuted
-                            ? "bg-rose-600 border-rose-600 hover:bg-rose-700"
-                            : "bg-slate-900 border-slate-800 hover:bg-slate-800")
-                    }
-                    title={isMuted ? "Unmute" : "Mute"}
-                >
-                    <Phone className="w-6 h-6 rotate-135" />
-                </button>
-
-                <button
-                    onClick={endCall}
-                    className="p-5 bg-rose-600 hover:bg-rose-700 rounded-full shadow-lg hover:shadow-rose-600/20 transition-all border border-rose-500 cursor-pointer"
-                    title="Hang Up"
-                >
-                    <Phone className="w-8 h-8 rotate-135" />
-                </button>
-
-                {callType === "video" && (
+            {callStatus === "incoming" ? (
+                <div className="flex items-center justify-center gap-8 py-4 border-t border-slate-900 w-full">
                     <button
-                        onClick={() => setIsCameraOn(prev => !prev)}
+                        onClick={acceptCall}
+                        className="p-5 bg-emerald-500 hover:bg-emerald-600 rounded-full shadow-lg hover:shadow-emerald-500/20 transition-all border border-emerald-400 cursor-pointer flex items-center justify-center"
+                        title="Accept Call"
+                    >
+                        {callType === "video" ? <Video className="w-7 h-7 text-white" /> : <Phone className="w-7 h-7 text-white" />}
+                    </button>
+                    <button
+                        onClick={declineCall}
+                        className="p-5 bg-rose-600 hover:bg-rose-700 rounded-full shadow-lg hover:shadow-rose-600/20 transition-all border border-rose-500 cursor-pointer flex items-center justify-center"
+                        title="Decline Call"
+                    >
+                        <Phone className="w-7 h-7 rotate-135 text-white" />
+                    </button>
+                </div>
+            ) : (
+                <div className="flex items-center justify-center gap-6 py-4 border-t border-slate-900">
+                    <button
+                        onClick={() => setIsMuted(prev => !prev)}
                         className={"p-4 rounded-full transition-all border cursor-pointer " +
-                            (!isCameraOn
+                            (isMuted
                                 ? "bg-rose-600 border-rose-600 hover:bg-rose-700"
                                 : "bg-slate-900 border-slate-800 hover:bg-slate-800")
                         }
-                        title={isCameraOn ? "Turn Camera Off" : "Turn Camera On"}
+                        title={isMuted ? "Unmute" : "Mute"}
                     >
-                        <Video className="w-6 h-6" />
+                        <Phone className="w-6 h-6 rotate-135" />
                     </button>
-                )}
-            </div>
+
+                    <button
+                        onClick={endCall}
+                        className="p-5 bg-rose-600 hover:bg-rose-700 rounded-full shadow-lg hover:shadow-rose-600/20 transition-all border border-rose-500 cursor-pointer"
+                        title="Hang Up"
+                    >
+                        <Phone className="w-8 h-8 rotate-135" />
+                    </button>
+
+                    {callType === "video" && (
+                        <button
+                            onClick={() => setIsCameraOn(prev => !prev)}
+                            className={"p-4 rounded-full transition-all border cursor-pointer " +
+                                (!isCameraOn
+                                    ? "bg-rose-600 border-rose-600 hover:bg-rose-700"
+                                    : "bg-slate-900 border-slate-800 hover:bg-slate-800")
+                            }
+                            title={isCameraOn ? "Turn Camera Off" : "Turn Camera On"}
+                        >
+                            <Video className="w-6 h-6" />
+                        </button>
+                    )}
+                </div>
+            )}
         </div>
     );
 }

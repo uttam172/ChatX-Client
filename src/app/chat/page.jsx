@@ -105,8 +105,12 @@ export default function ChatPage() {
     const [callTimer, setCallTimer] = useState(0);
     const [isMuted, setIsMuted] = useState(false);
     const [isCameraOn, setIsCameraOn] = useState(true);
+    const [callPeer, setCallPeer] = useState(null);
 
     const callingAudioRef = useRef(null);
+    const incomingAudioRef = useRef(null);
+    const callTimeoutRef = useRef(null);
+    const callNotificationRef = useRef(null);
 
     // Custom Dialog Modal States
     const [promptModal, setPromptModal] = useState({
@@ -165,13 +169,13 @@ export default function ChatPage() {
         });
     };
 
-    const showAlert = (title, message) => {
+    const showAlert = useCallback((title, message) => {
         setAlertModal({
             isOpen: true,
             title,
             message
         });
-    };
+    }, []);
 
     // Media Sharing states
     const fileInputRef = useRef(null);
@@ -590,7 +594,7 @@ export default function ChatPage() {
                 setIsNotificationMuted(false);
                 localStorage.setItem("chatx_notifications_muted", "false");
                 try {
-                    const audio = new Audio("/assets/bubble-pop-up-alert-notification.mp3");
+                    const audio = new Audio("/media/bubble-pop-up-alert-notification.mp3");
                     audio.play().catch(() => {});
                 } catch {}
                 new Notification("Notifications Enabled! 🔔", {
@@ -607,7 +611,7 @@ export default function ChatPage() {
                 
                 if (!newValue) {
                     try {
-                        const audio = new Audio("/assets/bubble-pop-up-alert-notification.mp3");
+                        const audio = new Audio("/media/bubble-pop-up-alert-notification.mp3");
                         audio.play().catch(() => {});
                     } catch {}
                     new Notification("Notifications Unmuted 🔔", {
@@ -914,7 +918,7 @@ export default function ChatPage() {
 
             if (isPeerMessage && !isNotificationMutedRef.current) {
                 try {
-                    const audio = new Audio(msg.isNudge ? "/assets/bell-notification.mp3" : "/assets/bubble-pop-up-alert-notification.mp3");
+                    const audio = new Audio(msg.isNudge ? "/media/bell-notification.mp3" : "/media/bubble-pop-up-alert-notification.mp3");
                     audio.play().catch(e => console.log("Audio playback was blocked or failed:", e));
                 } catch { }
             }
@@ -1110,7 +1114,7 @@ export default function ChatPage() {
             const isPeerMessage = !isSameId(msg.senderId, parsedUser);
             if (isPeerMessage && !isNotificationMutedRef.current) {
                 try {
-                    const audio = new Audio("/assets/bubble-pop-up-alert-notification.mp3");
+                    const audio = new Audio("/media/bubble-pop-up-alert-notification.mp3");
                     audio.play().catch(e => console.log("Audio playback was blocked or failed:", e));
                 } catch { }
             }
@@ -1259,8 +1263,127 @@ export default function ChatPage() {
             }));
         });
 
-        return () => { disconnectSocket(); };
-    }, [router, fetchUsers, checkPrivateKey, addInAppToast, showDesktopNotification, fetchGroups, setActiveChat]);
+        socket?.on("incoming_call", ({ senderId, senderHikeId, type }) => {
+            const callerUser = allUsersRef.current.find(u => isSameId(u._id, senderId)) || {
+                _id: senderId,
+                hikeId: senderHikeId
+            };
+            setCallPeer(callerUser);
+            setCallType(type);
+            setCallStatus("incoming");
+            setCallTimer(0);
+            setIsMuted(false);
+            setIsCameraOn(true);
+
+            // Show Desktop Notification for incoming call
+            if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "granted" && !isNotificationMutedRef.current) {
+                const title = type === "video" ? `📹 Incoming Video Call from @${senderHikeId}` : `📞 Incoming Voice Call from @${senderHikeId}`;
+                const options = {
+                    body: "Click to focus and answer the call.",
+                    icon: "/favicon.ico",
+                    tag: `call_${senderId}`,
+                    requireInteraction: true,
+                    silent: true
+                };
+                try {
+                    const n = new Notification(title, options);
+                    n.onclick = (e) => {
+                        e.preventDefault();
+                        window.focus();
+                        n.close();
+                    };
+                    callNotificationRef.current = n;
+                } catch (err) {
+                    console.error("Failed to render call desktop notification:", err);
+                }
+            }
+
+            try {
+                const audio = new Audio("/media/guitar-notification.mp3");
+                audio.loop = true;
+                audio.play().catch(e => console.log("Ringtone failed to play:", e));
+                incomingAudioRef.current = audio;
+            } catch { }
+        });
+
+        socket?.on("call_accepted", () => {
+            if (callTimeoutRef.current) {
+                clearTimeout(callTimeoutRef.current);
+                callTimeoutRef.current = null;
+            }
+
+            if (callingAudioRef.current) {
+                callingAudioRef.current.pause();
+                callingAudioRef.current = null;
+            }
+
+            if (callNotificationRef.current) {
+                callNotificationRef.current.close();
+                callNotificationRef.current = null;
+            }
+
+            try {
+                const connectedAudio = new Audio("/media/sci-fi-confirmation.mp3");
+                connectedAudio.play().catch(e => console.log("Connected sound failed to play:", e));
+            } catch { }
+
+            setCallStatus("connected");
+            setCallTimer(0);
+        });
+
+        socket?.on("call_declined", () => {
+            if (callTimeoutRef.current) {
+                clearTimeout(callTimeoutRef.current);
+                callTimeoutRef.current = null;
+            }
+
+            if (callingAudioRef.current) {
+                callingAudioRef.current.pause();
+                callingAudioRef.current = null;
+            }
+
+            if (callNotificationRef.current) {
+                callNotificationRef.current.close();
+                callNotificationRef.current = null;
+            }
+
+            setCallStatus("disconnected");
+            setCallPeer(null);
+            showAlert("Call Declined", "The recipient declined your call request.");
+        });
+
+        socket?.on("call_ended", () => {
+            if (callingAudioRef.current) {
+                callingAudioRef.current.pause();
+                callingAudioRef.current = null;
+            }
+
+            if (incomingAudioRef.current) {
+                incomingAudioRef.current.pause();
+                incomingAudioRef.current = null;
+            }
+
+            if (callNotificationRef.current) {
+                callNotificationRef.current.close();
+                callNotificationRef.current = null;
+            }
+
+            setCallStatus("disconnected");
+            setCallTimer(0);
+            setCallPeer(null);
+        });
+
+        return () => {
+            disconnectSocket();
+            if (callTimeoutRef.current) clearTimeout(callTimeoutRef.current);
+            if (callingAudioRef.current) callingAudioRef.current.pause();
+            if (incomingAudioRef.current) incomingAudioRef.current.pause();
+            if (callNotificationRef.current) {
+                callNotificationRef.current.close();
+                callNotificationRef.current = null;
+            }
+        };
+    }, [router, fetchUsers, checkPrivateKey, addInAppToast, showDesktopNotification, fetchGroups, setActiveChat, showAlert]);
 
     // ── Auto-scroll to latest message ──────────────────────
     useEffect(() => {
@@ -1875,6 +1998,7 @@ export default function ChatPage() {
     // Ringing call handlers
     const startCall = (type) => {
         if (!activeChat) return;
+        setCallPeer(activeChat);
         setCallType(type);
         setCallStatus("calling");
         setCallTimer(0);
@@ -1882,37 +2006,96 @@ export default function ChatPage() {
         setIsCameraOn(true);
 
         try {
-            const audio = new Audio("/assets/guitar-notification.mp3");
+            const audio = new Audio("/media/guitar-notification.mp3");
             audio.loop = true;
             audio.play().catch(e => console.log("Calling sound failed to play:", e));
             callingAudioRef.current = audio;
         } catch { }
 
-        setTimeout(() => {
-            setCallStatus(currentStatus => {
-                if (currentStatus === "calling") {
-                    if (callingAudioRef.current) {
-                        callingAudioRef.current.pause();
-                        callingAudioRef.current = null;
-                    }
-                    try {
-                        const connectedAudio = new Audio("/assets/sci-fi-confirmation.mp3");
-                        connectedAudio.play().catch(e => console.log("Connected sound failed to play:", e));
-                    } catch { }
-                    return "connected";
-                }
-                return currentStatus;
-            });
-        }, 3500);
+        const socket = getSocket();
+        socket?.emit("call_user", { receiverId: activeChat._id, type });
+
+        if (callTimeoutRef.current) clearTimeout(callTimeoutRef.current);
+        callTimeoutRef.current = setTimeout(() => {
+            showAlert("Call Timeout", `No answer from @${activeChat.hikeId}.`);
+            endCall();
+        }, 30000);
+    };
+
+    const acceptCall = () => {
+        if (!callPeer) return;
+
+        if (incomingAudioRef.current) {
+            incomingAudioRef.current.pause();
+            incomingAudioRef.current = null;
+        }
+
+        if (callNotificationRef.current) {
+            callNotificationRef.current.close();
+            callNotificationRef.current = null;
+        }
+
+        try {
+            const connectedAudio = new Audio("/media/sci-fi-confirmation.mp3");
+            connectedAudio.play().catch(e => console.log("Connected sound failed to play:", e));
+        } catch { }
+
+        setCallStatus("connected");
+        setCallTimer(0);
+
+        const socket = getSocket();
+        socket?.emit("accept_call", { callerId: callPeer._id });
+    };
+
+    const declineCall = () => {
+        if (!callPeer) return;
+
+        if (incomingAudioRef.current) {
+            incomingAudioRef.current.pause();
+            incomingAudioRef.current = null;
+        }
+
+        if (callNotificationRef.current) {
+            callNotificationRef.current.close();
+            callNotificationRef.current = null;
+        }
+
+        setCallStatus("disconnected");
+        setCallPeer(null);
+
+        const socket = getSocket();
+        socket?.emit("decline_call", { callerId: callPeer._id });
     };
 
     const endCall = () => {
-        setCallStatus("disconnected");
-        setCallTimer(0);
+        if (callTimeoutRef.current) {
+            clearTimeout(callTimeoutRef.current);
+            callTimeoutRef.current = null;
+        }
+
         if (callingAudioRef.current) {
             callingAudioRef.current.pause();
             callingAudioRef.current = null;
         }
+
+        if (incomingAudioRef.current) {
+            incomingAudioRef.current.pause();
+            incomingAudioRef.current = null;
+        }
+
+        if (callNotificationRef.current) {
+            callNotificationRef.current.close();
+            callNotificationRef.current = null;
+        }
+
+        if (callPeer) {
+            const socket = getSocket();
+            socket?.emit("end_call", { peerId: callPeer._id });
+        }
+
+        setCallStatus("disconnected");
+        setCallTimer(0);
+        setCallPeer(null);
     };
 
     // 3-dots Menu action: Clear Chat History persistently
@@ -2176,7 +2359,9 @@ export default function ChatPage() {
                         isCameraOn={isCameraOn}
                         setIsCameraOn={setIsCameraOn}
                         endCall={endCall}
-                        activeChat={activeChat}
+                        acceptCall={acceptCall}
+                        declineCall={declineCall}
+                        activeChat={callPeer || activeChat}
                     />
                 )}
             </AnimatePresence>
