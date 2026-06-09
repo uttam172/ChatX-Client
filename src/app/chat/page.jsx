@@ -249,9 +249,7 @@ export default function ChatPage() {
     const [mounted, setMounted] = useState(false);
 
     useEffect(() => {
-        setTimeout(() => {
-            setMounted(true);
-        }, 0);
+        setMounted(true);
     }, []);
 
     const messagesEndRef = useRef(null);
@@ -345,11 +343,49 @@ export default function ChatPage() {
         }
     }, []);
 
+    // Update Chat Theme and Background
+    const handleUpdateChatTheme = useCallback(async (chatId, isGroup, themeKey, customBackground) => {
+        try {
+            const token = localStorage.getItem("token");
+            if (!token) return;
+
+            const body = {};
+            if (isGroup) {
+                body.groupId = chatId;
+            } else {
+                body.peerId = chatId;
+            }
+            if (themeKey !== undefined) {
+                body.theme = themeKey;
+            }
+            if (customBackground !== undefined) {
+                body.customBackground = customBackground;
+            }
+
+            const res = await fetch(API_URL + "/api/users/chat-settings/theme", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: "Bearer " + token
+                },
+                body: JSON.stringify(body)
+            });
+
+            if (!res.ok) {
+                const errData = await res.json();
+                throw new Error(errData.error || "Failed to update theme");
+            }
+
+            await fetchChatSettings();
+        } catch (err) {
+            console.error("Failed to update chat theme:", err);
+            showAlert("Error", err.message || "Failed to update chat theme.");
+        }
+    }, [fetchChatSettings]);
+
     // Fetch chat settings on mount & when activeChat changes
     useEffect(() => {
-        setTimeout(() => {
-            fetchChatSettings();
-        }, 0);
+        fetchChatSettings();
     }, [fetchChatSettings, activeChat]);
 
     // Fetch message history with selected contact/group and decrypt it
@@ -772,9 +808,7 @@ export default function ChatPage() {
                     })
                     .catch(() => setHasPrivateKey(false));
             });
-        setTimeout(() => {
-            fetchUsers();
-        }, 0);
+        fetchUsers();
         initiateSocketConnection(token);
         const socket = getSocket();
 
@@ -2293,6 +2327,8 @@ export default function ChatPage() {
                     onUpdateGroup={handleUpdateGroup}
                     onClose={() => setIsGroupDetailsOpen(false)}
                     showConfirm={showConfirm}
+                    onUpdateTheme={handleUpdateChatTheme}
+                    chatSettings={chatSettings}
                 />
             ) : (
                 <ChatArea
@@ -2431,6 +2467,8 @@ export default function ChatPage() {
                         isOpen={isChatDetailsOpen}
                         onClose={() => setIsChatDetailsOpen(false)}
                         onUpdateGroup={handleUpdateGroup}
+                        onUpdateTheme={handleUpdateChatTheme}
+                        chatSettings={chatSettings}
                     />
                 )}
             </AnimatePresence>

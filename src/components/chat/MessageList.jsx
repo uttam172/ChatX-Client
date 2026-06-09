@@ -9,6 +9,7 @@ export default function MessageList({
     messages,
     currentUser,
     activeChat,
+    theme,
     firstUnreadMessageId,
     lastSeenMyMessageIndex,
     hoveredMessageId,
@@ -144,6 +145,7 @@ export default function MessageList({
                                     currentUser={currentUser}
                                     activeChat={activeChat}
                                     messages={messages}
+                                    theme={theme}
                                     hoveredMessageId={hoveredMessageId}
                                     activeMessageReactionId={activeMessageReactionId}
                                     setActiveMessageReactionId={setActiveMessageReactionId}

@@ -11,6 +11,7 @@ export default function MessageBubble({
     currentUser,
     activeChat,
     messages,
+    theme = {},
     hoveredMessageId,
     activeMessageReactionId,
     setActiveMessageReactionId,
@@ -177,8 +178,8 @@ export default function MessageBubble({
                         className={isOnlyEmoji
                             ? `relative p-0 select-none bg-transparent border-none shadow-none ${isMine ? "text-right" : "text-left"}`
                             : `px-4 py-2.5 rounded-2xl shadow-md relative ${isMine
-                                ? "bg-gradient-to-br from-indigo-600 via-indigo-700 to-purple-600 text-white rounded-br-sm shadow-[0_4px_15px_rgba(99,102,241,0.2)]"
-                                : "bg-slate-900/35 backdrop-blur-md text-foreground rounded-bl-sm border border-slate-800/80 shadow-[0_4px_15px_rgba(0,0,0,0.15)]"}`}
+                                ? (theme.bubbleSent || "bg-gradient-to-br from-indigo-600 via-indigo-700 to-purple-600 text-white rounded-br-sm shadow-[0_4px_15px_rgba(99,102,241,0.2)]")
+                                : (theme.bubbleReceived || "bg-slate-900/35 backdrop-blur-md text-foreground rounded-bl-sm border border-slate-800/80 shadow-[0_4px_15px_rgba(0,0,0,0.15)]")}`}
                     >
                 {/* Reply Quote Block inside bubble */}
                 {msg.replyTo && (() => {

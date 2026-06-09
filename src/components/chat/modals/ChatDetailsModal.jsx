@@ -2,6 +2,7 @@ import React, { useState, useMemo } from "react";
 import { motion } from "framer-motion";
 import { X, Search, Check, Edit2, Copy, Shield, Users, User, Clock, Mail, Info } from "lucide-react";
 import { isSameId } from "@/utils/chatHelpers";
+import { chatThemes } from "@/utils/themeHelper";
 import Avatar from "../Avatar";
 
 export default function ChatDetailsModal({
@@ -12,7 +13,9 @@ export default function ChatDetailsModal({
     formatLastSeenText,
     isOpen,
     onClose,
-    onUpdateGroup
+    onUpdateGroup,
+    onUpdateTheme,
+    chatSettings
 }) {
     const [isEditing, setIsEditing] = useState(false);
     const [groupName, setGroupName] = useState(() => activeChat?.isGroup ? (activeChat.name || "") : "");
@@ -23,6 +26,30 @@ export default function ChatDetailsModal({
     const [copied, setCopied] = useState(false);
 
     const isAdmin = activeChat?.isGroup && isSameId(activeChat.createdBy, currentUser);
+
+    const currentSetting = useMemo(() => {
+        if (!activeChat || activeChat.isGroup) return null;
+        return chatSettings?.find(s => s.peerId?.toString() === activeChat._id.toString());
+    }, [chatSettings, activeChat]);
+
+    const activeThemeId = currentSetting?.theme || "default";
+
+    const handleWallpaperUpload = (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        if (!file.type.startsWith("image/")) {
+            alert("File must be an image");
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            const base64Data = event.target.result;
+            onUpdateTheme(activeChat._id, false, undefined, base64Data);
+        };
+        reader.readAsDataURL(file);
+    };
 
     const filteredUsers = useMemo(() => {
         if (!searchQuery.trim()) return allUsers;
@@ -107,7 +134,7 @@ export default function ChatDetailsModal({
                     </div>
 
                     {/* Body */}
-                    <div className="p-6 flex flex-col items-center gap-5">
+                    <div className="p-6 flex flex-col items-center gap-5 max-h-[70vh] overflow-y-auto">
                         {/* Avatar */}
                         <div className="relative">
                             <Avatar user={activeChat} className="w-20 h-20 shadow-md" />
@@ -172,6 +199,75 @@ export default function ChatDetailsModal({
                                     </div>
                                 </div>
                             )}
+                        </div>
+
+                        {/* Theme & Wallpaper Customization */}
+                        <div className="w-full space-y-3 border-t border-border pt-4">
+                            <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider block">
+                                Chat Theme & Wallpaper
+                            </label>
+                            
+                            {/* Preinstalled Themes Grid */}
+                            <div className="grid grid-cols-3 gap-2">
+                                {Object.values(chatThemes).map((themeObj) => {
+                                    const isSelected = activeThemeId === themeObj.id && !currentSetting?.customBackground;
+                                    return (
+                                        <button
+                                            key={themeObj.id}
+                                            type="button"
+                                            onClick={() => onUpdateTheme(activeChat._id, false, themeObj.id, "")}
+                                            className={`flex flex-col items-center gap-1.5 p-2 rounded-xl border bg-muted/20 hover:bg-muted/40 transition-all cursor-pointer ${
+                                                isSelected 
+                                                    ? "border-indigo-500 ring-2 ring-indigo-500/20 scale-[1.02]" 
+                                                    : "border-border/60"
+                                            }`}
+                                        >
+                                            <div 
+                                                className="w-8 h-8 rounded-full border border-border/50 shadow-inner"
+                                                style={{ background: themeObj.previewBg || themeObj.background }}
+                                            />
+                                            <span className="text-[10px] font-bold text-foreground truncate w-full text-center">
+                                                {themeObj.name.split(" ")[0]}
+                                            </span>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+
+                            {/* Custom Background Upload Button */}
+                            <div className="flex flex-col gap-2 pt-1 w-full">
+                                <div className="flex gap-2 w-full">
+                                    <button
+                                        type="button"
+                                        onClick={() => document.getElementById("wallpaper-upload-dm")?.click()}
+                                        className="flex-1 py-2 bg-indigo-600/10 hover:bg-indigo-600 border border-indigo-500/20 hover:border-indigo-600 text-indigo-500 hover:text-white rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                                    >
+                                        📷 Upload Wallpaper
+                                    </button>
+                                    {currentSetting?.customBackground && (
+                                        <button
+                                            type="button"
+                                            onClick={() => onUpdateTheme(activeChat._id, false, "default", "")}
+                                            className="px-3 py-2 bg-rose-500/10 hover:bg-rose-500 border border-rose-500/20 hover:border-rose-500 text-rose-500 hover:text-white rounded-xl text-xs font-bold transition-all cursor-pointer"
+                                            title="Remove custom wallpaper"
+                                        >
+                                            Clear
+                                        </button>
+                                    )}
+                                </div>
+                                <input
+                                    id="wallpaper-upload-dm"
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={handleWallpaperUpload}
+                                    className="hidden"
+                                />
+                                {currentSetting?.customBackground && (
+                                    <span className="text-[10px] text-emerald-500 font-bold text-center block">
+                                        ✨ Custom wallpaper active
+                                    </span>
+                                )}
+                            </div>
                         </div>
 
                         {/* Footer Info */}

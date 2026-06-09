@@ -2,6 +2,7 @@ import React from "react";
 import { motion } from "framer-motion";
 import { Paperclip, MessageSquare } from "lucide-react";
 import { formatLastSeenText } from "@/utils/chatHelpers";
+import { getChatTheme } from "@/utils/themeHelper";
 import ChatHeader from "./ChatHeader";
 import MessageList from "./MessageList";
 import MessageComposer from "./MessageComposer";
@@ -60,6 +61,8 @@ export default function ChatArea({
     handleMessageMouseLeave,
     onViewDetails
 }) {
+    const theme = getChatTheme(chatSettings, activeChat);
+
     return (
         <motion.div
             onDragOver={handleDragOver}
@@ -68,8 +71,20 @@ export default function ChatArea({
             className={`flex-1 flex flex-col relative transition-all duration-300 ${
                 activeChat ? "flex w-full" : "hidden md:flex"
             } ${nudgeShake ? "animate-shake" : ""}`}
-            style={{ background: "linear-gradient(135deg, var(--color-background), var(--color-muted))" }}
+            style={
+                theme.isCustomImage 
+                    ? { 
+                        backgroundImage: theme.background, 
+                        backgroundSize: "cover", 
+                        backgroundPosition: "center" 
+                      } 
+                    : { background: theme.background }
+            }
         >
+            {/* Custom Image Dark Overlay */}
+            {theme.isCustomImage && (
+                <div className="absolute inset-0 bg-slate-950/45 pointer-events-none z-0" />
+            )}
             {/* Drag and Drop Blur Dropzone Overlay */}
             {isDraggingFile && (
                 <div className="absolute inset-0 z-50 bg-indigo-600/10 backdrop-blur-md border-4 border-dashed border-indigo-500 rounded-3xl m-4 flex flex-col items-center justify-center pointer-events-none animate-fade-in shadow-2xl">
@@ -132,6 +147,7 @@ export default function ChatArea({
                         messages={messages}
                         currentUser={currentUser}
                         activeChat={activeChat}
+                        theme={theme}
                         firstUnreadMessageId={firstUnreadMessageId}
                         lastSeenMyMessageIndex={lastSeenMyMessageIndex}
                         hoveredMessageId={hoveredMessageId}
@@ -172,6 +188,7 @@ export default function ChatArea({
                         setEditingMessage={setEditingMessage}
                         handlePaste={handlePaste}
                         currentUser={currentUser}
+                        theme={theme}
                     />
                 </>
             ) : (

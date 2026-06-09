@@ -25,8 +25,36 @@ export default function MessageComposer({
     editingMessage,
     setEditingMessage,
     handlePaste,
-    currentUser
+    currentUser,
+    theme = {}
 }) {
+    // Dynamic Accent Colors based on theme
+    const ringColorClass = {
+        indigo: "focus:ring-indigo-500/30 focus:border-indigo-500/80 focus:shadow-[0_0_15px_rgba(99,102,241,0.15)]",
+        pink: "focus:ring-pink-500/30 focus:border-pink-500/80 focus:shadow-[0_0_15px_rgba(236,72,153,0.15)]",
+        orange: "focus:ring-orange-500/30 focus:border-orange-500/80 focus:shadow-[0_0_15px_rgba(249,115,22,0.15)]",
+        emerald: "focus:ring-emerald-500/30 focus:border-emerald-500/80 focus:shadow-[0_0_15px_rgba(16,185,129,0.15)]",
+        cyan: "focus:ring-cyan-500/30 focus:border-cyan-500/80 focus:shadow-[0_0_15px_rgba(6,182,212,0.15)]",
+        rose: "focus:ring-rose-500/30 focus:border-rose-500/80 focus:shadow-[0_0_15px_rgba(244,63,94,0.15)]"
+    }[theme?.accentColor] || "focus:ring-indigo-500/30 focus:border-indigo-500/80 focus:shadow-[0_0_15px_rgba(99,102,241,0.15)]";
+
+    const accentBgTextClass = {
+        indigo: "bg-indigo-500/10 text-indigo-500 hover:bg-indigo-600",
+        pink: "bg-pink-500/10 text-pink-500 hover:bg-pink-600",
+        orange: "bg-orange-500/10 text-orange-500 hover:bg-orange-600",
+        emerald: "bg-emerald-500/10 text-emerald-500 hover:bg-emerald-600",
+        cyan: "bg-cyan-500/10 text-cyan-500 hover:bg-cyan-600",
+        rose: "bg-rose-500/10 text-rose-500 hover:bg-rose-600"
+    }[theme?.accentColor] || "bg-indigo-500/10 text-indigo-500 hover:bg-indigo-600";
+
+    const accentSolidBgClass = {
+        indigo: "bg-indigo-600 hover:bg-indigo-700",
+        pink: "bg-pink-600 hover:bg-pink-700",
+        orange: "bg-orange-600 hover:bg-orange-700",
+        emerald: "bg-emerald-600 hover:bg-emerald-700",
+        cyan: "bg-cyan-600 hover:bg-cyan-700",
+        rose: "bg-rose-600 hover:bg-rose-700"
+    }[theme?.accentColor] || "bg-indigo-600 hover:bg-indigo-700";
     const isTypingRef = useRef(false);
     const typingTimeoutRef = useRef(null);
 
@@ -112,7 +140,7 @@ export default function MessageComposer({
                     <button
                         type="button"
                         onClick={() => setReplyingToMessage(null)}
-                        className="p-1 hover:bg-muted text-muted-foreground hover:text-foreground rounded-full transition-colors shrink-0 cursor-pointer"
+                        className="w-7 h-7 flex items-center justify-center hover:bg-muted text-muted-foreground hover:text-foreground rounded-full transition-colors shrink-0 cursor-pointer"
                     >
                         <AnimatedIcon name="X" animation="scale" size={16} />
                     </button>
@@ -140,7 +168,7 @@ export default function MessageComposer({
                             setMessageInput("");
                             resetComposerInputHeight();
                         }}
-                        className="p-1 hover:bg-muted text-muted-foreground hover:text-foreground rounded-full transition-colors shrink-0 cursor-pointer"
+                        className="w-7 h-7 flex items-center justify-center hover:bg-muted text-muted-foreground hover:text-foreground rounded-full transition-colors shrink-0 cursor-pointer"
                     >
                         <AnimatedIcon name="X" animation="scale" size={16} />
                     </button>
@@ -206,7 +234,7 @@ export default function MessageComposer({
                     <button
                         type="button"
                         onClick={removePendingAttachment}
-                        className="p-1 hover:bg-rose-500/10 text-rose-500 hover:text-rose-600 rounded-full transition-colors shrink-0 cursor-pointer"
+                        className="w-8 h-8 flex items-center justify-center hover:bg-rose-500/10 text-rose-500 hover:text-rose-600 rounded-full transition-colors shrink-0 cursor-pointer"
                         title="Remove Attachment"
                     >
                         <AnimatedIcon name="X" animation="scale" size={18} />
@@ -226,7 +254,7 @@ export default function MessageComposer({
                         onClick={sendNudge}
                         whileHover={{ scale: 1.12 }}
                         whileTap={{ scale: 0.88 }}
-                        className="p-3 bg-amber-500/10 text-amber-500 hover:bg-amber-500 hover:text-white rounded-full transition-all shrink-0 cursor-pointer"
+                        className="w-11 h-11 flex items-center justify-center bg-amber-500/10 text-amber-500 hover:bg-amber-500 hover:text-white rounded-full transition-all shrink-0 cursor-pointer"
                         title="Send a Nudge! ⚡"
                     >
                         <AnimatedIcon name="Zap" animation="bounce" size={20} />
@@ -239,7 +267,7 @@ export default function MessageComposer({
                         whileHover={{ scale: 1.12 }}
                         whileTap={{ scale: 0.88 }}
                         disabled={isUploading || isSending}
-                        className="p-3 bg-indigo-500/10 text-indigo-500 hover:bg-indigo-600 hover:text-white rounded-full transition-all shrink-0 cursor-pointer disabled:opacity-50"
+                        className={`w-11 h-11 flex items-center justify-center hover:text-white rounded-full transition-all shrink-0 cursor-pointer disabled:opacity-50 ${accentBgTextClass}`}
                         title="Share Media (Limit 100MB)"
                     >
                         {isUploading ? (
@@ -265,12 +293,12 @@ export default function MessageComposer({
                             onChange={handleTextareaChange}
                             onPaste={handlePaste}
                             disabled={isSending || isUploading}
-                            className="w-full pl-4 pr-12 py-3 rounded-2xl bg-muted text-foreground focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500/80 border border-transparent text-sm disabled:opacity-50 transition-all duration-300 resize-none overflow-y-auto max-h-32 focus:shadow-[0_0_15px_rgba(99,102,241,0.15)]"
+                            className={`w-full pl-4 pr-12 py-3 rounded-2xl bg-muted text-foreground focus:outline-none focus:ring-2 border border-transparent text-sm disabled:opacity-50 transition-all duration-300 resize-none overflow-y-auto max-h-32 ${ringColorClass}`}
                         />
                         <button
                             type="submit"
                             disabled={isSending || isUploading || (!pendingFile && !messageInput.trim())}
-                            className="absolute right-2 bottom-2.5 p-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 text-white rounded-full transition-colors cursor-pointer"
+                            className={`absolute right-2 bottom-2.5 w-8 h-8 flex items-center justify-center disabled:opacity-40 text-white rounded-full transition-colors cursor-pointer ${accentSolidBgClass}`}
                         >
                             {isSending || isUploading ? (
                                 <AnimatedIcon name="Loader2" animation="spin" size={16} />

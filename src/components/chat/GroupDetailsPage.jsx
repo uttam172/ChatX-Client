@@ -7,6 +7,7 @@ import {
 import { isSameId } from "@/utils/chatHelpers";
 import Avatar from "./Avatar";
 import AnimatedIcon from "../common/AnimatedIcon";
+import { chatThemes } from "@/utils/themeHelper";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
@@ -28,7 +29,9 @@ export default function GroupDetailsPage({
     allUsers,
     onUpdateGroup,
     onClose,
-    showConfirm
+    showConfirm,
+    onUpdateTheme,
+    chatSettings
 }) {
     const [groupName, setGroupName] = useState(() => activeChat?.name || "");
     const [selectedUsers, setSelectedUsers] = useState(() => (activeChat?.members || []).map(m => m._id));
@@ -60,6 +63,30 @@ export default function GroupDetailsPage({
     const fileInputRef = useRef(null);
 
     const isAdmin = activeChat && isSameId(activeChat.createdBy, currentUser);
+
+    const currentSetting = useMemo(() => {
+        if (!activeChat) return null;
+        return chatSettings?.find(s => s.groupId?.toString() === activeChat._id.toString());
+    }, [chatSettings, activeChat]);
+
+    const activeThemeId = currentSetting?.theme || "default";
+
+    const handleWallpaperUpload = (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        if (!file.type.startsWith("image/")) {
+            alert("File must be an image");
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            const base64Data = event.target.result;
+            onUpdateTheme(activeChat._id, true, undefined, base64Data);
+        };
+        reader.readAsDataURL(file);
+    };
 
     // Live avatar preview source
     const liveAvatarSrc = useMemo(() => {
@@ -815,7 +842,84 @@ export default function GroupDetailsPage({
                 )}
             </div>
 
-            {/* SECTION 4: DANGER ZONE (Delete or Leave) */}
+            {/* SECTION 4: CHAT THEME & WALLPAPER */}
+            <div className="space-y-4 border-t border-border/40 pt-8">
+                <div className="space-y-1">
+                    <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Chat Theme & Wallpaper</h3>
+                    <p className="text-[11px] text-muted-foreground mt-0.5 leading-normal">
+                        Personalize your chat background view for this group chat. Pre-installed themes will skin both the background and message bubbles.
+                    </p>
+                </div>
+
+                <div className="space-y-4">
+                    {/* Preinstalled Themes Grid */}
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
+                        {Object.values(chatThemes).map((themeObj) => {
+                            const isSelected = activeThemeId === themeObj.id && !currentSetting?.customBackground;
+                            return (
+                                <button
+                                    key={themeObj.id}
+                                    type="button"
+                                    onClick={() => onUpdateTheme(activeChat._id, true, themeObj.id, "")}
+                                    className={`flex flex-col items-center gap-2 p-3 rounded-2xl border bg-muted/20 hover:bg-muted/40 transition-all cursor-pointer ${
+                                        isSelected 
+                                            ? "border-indigo-500 ring-2 ring-indigo-500/20 scale-[1.02]" 
+                                            : "border-border/60"
+                                    }`}
+                                >
+                                    <div 
+                                        className="w-10 h-10 rounded-full border border-border/50 shadow-inner"
+                                        style={{ background: themeObj.previewBg || themeObj.background }}
+                                    />
+                                    <span className="text-[11px] font-bold text-foreground truncate w-full text-center">
+                                        {themeObj.name}
+                                    </span>
+                                </button>
+                            );
+                        })}
+                    </div>
+
+                    {/* Custom Background Upload */}
+                    <div className="flex flex-col sm:flex-row items-center gap-3 bg-muted/10 border border-border/55 rounded-2xl p-4">
+                        <div className="flex-1 text-center sm:text-left">
+                            <h4 className="text-xs font-bold text-foreground">Custom Chat Background</h4>
+                            <p className="text-[10px] text-muted-foreground mt-0.5">Upload a custom wallpaper image file to display behind messages.</p>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                            <button
+                                type="button"
+                                onClick={() => document.getElementById("wallpaper-upload-group")?.click()}
+                                className="px-4 py-2 bg-indigo-600/10 hover:bg-indigo-600 border border-indigo-500/20 hover:border-indigo-600 text-indigo-500 hover:text-white rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5"
+                            >
+                                📷 Upload Image
+                            </button>
+                            {currentSetting?.customBackground && (
+                                <button
+                                    type="button"
+                                    onClick={() => onUpdateTheme(activeChat._id, true, "default", "")}
+                                    className="px-3 py-2 bg-rose-500/10 hover:bg-rose-500 border border-rose-500/20 hover:border-rose-500 text-rose-500 hover:text-white rounded-xl text-xs font-bold transition-all cursor-pointer"
+                                >
+                                    Clear
+                                </button>
+                            )}
+                            <input
+                                id="wallpaper-upload-group"
+                                type="file"
+                                accept="image/*"
+                                onChange={handleWallpaperUpload}
+                                className="hidden"
+                            />
+                        </div>
+                    </div>
+                    {currentSetting?.customBackground && (
+                        <p className="text-[10px] text-emerald-500 font-bold text-center block bg-emerald-500/5 border border-emerald-500/10 rounded-xl p-2">
+                            ✨ Custom wallpaper background is currently active for this chat group.
+                        </p>
+                    )}
+                </div>
+            </div>
+
+            {/* SECTION 5: DANGER ZONE (Delete or Leave) */}
             <div className="space-y-4 border-t border-border/40 pt-8">
                 <div className="space-y-1">
                     <h3 className="text-xs font-bold text-rose-500 uppercase tracking-wider">Danger Zone</h3>
