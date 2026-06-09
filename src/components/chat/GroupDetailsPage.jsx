@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import { isSameId } from "@/utils/chatHelpers";
 import Avatar from "./Avatar";
+import AnimatedIcon from "../common/AnimatedIcon";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
@@ -820,9 +821,38 @@ export default function GroupDetailsPage({
                     <h3 className="text-xs font-bold text-rose-500 uppercase tracking-wider">Danger Zone</h3>
                 </div>
 
-                <div className="p-1 flex flex-col justify-between gap-4">
-                    {isAdmin ? (
-                        <div className="space-y-3">
+                <div className="p-1 flex flex-col gap-6">
+                    {/* Leave Group (Shown to both Admin and normal members) */}
+                    <div className="space-y-3">
+                        <div className="space-y-1.5">
+                            <h4 className="text-xs font-bold text-foreground">Leave Group</h4>
+                            <p className="text-[11px] text-muted-foreground leading-relaxed">
+                                {isAdmin 
+                                    ? "Exit from this group conversation. Since you are the group administrator, leaving the group will automatically promote one of the remaining members to become the new group admin. If no other members remain, the group will be permanently deleted."
+                                    : "Exit from this group conversation. You will lose access to future messages and this group chat will be completely removed from your conversation list."}
+                            </p>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={handleLeaveGroup}
+                            disabled={actionLoading || isSaving}
+                            className="w-full py-2.5 rounded-xl text-xs font-bold bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 border border-rose-500/20 cursor-pointer transition-colors flex items-center justify-center gap-1.5"
+                        >
+                            {actionLoading ? (
+                                <>
+                                    <Loader2 className="w-3.5 h-3.5 animate-spin" /> Leaving...
+                                </>
+                            ) : (
+                                <>
+                                    <AnimatedIcon name="LogOut" animation="logout" size={16} /> Leave Group
+                                </>
+                            )}
+                        </button>
+                    </div>
+
+                    {/* Delete Group (Admin only) */}
+                    {isAdmin && (
+                        <div className="space-y-3 pt-4 border-t border-border/20">
                             <div className="space-y-1.5">
                                 <h4 className="text-xs font-bold text-foreground">Delete Group</h4>
                                 <p className="text-[11px] text-muted-foreground leading-relaxed">
@@ -841,32 +871,7 @@ export default function GroupDetailsPage({
                                     </>
                                 ) : (
                                     <>
-                                        <Trash2 className="w-4 h-4" /> Delete Group
-                                    </>
-                                )}
-                            </button>
-                        </div>
-                    ) : (
-                        <div className="space-y-3">
-                            <div className="space-y-1.5">
-                                <h4 className="text-xs font-bold text-foreground">Leave Group</h4>
-                                <p className="text-[11px] text-muted-foreground leading-relaxed">
-                                    Exit from this group conversation. You will lose access to future messages and this group chat will be completely removed from your conversation list.
-                                </p>
-                            </div>
-                            <button
-                                type="button"
-                                onClick={handleLeaveGroup}
-                                disabled={actionLoading || isSaving}
-                                className="w-full py-2.5 rounded-xl text-xs font-bold bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 border border-rose-500/20 cursor-pointer transition-colors flex items-center justify-center gap-1.5"
-                            >
-                                {actionLoading ? (
-                                    <>
-                                        <Loader2 className="w-3.5 h-3.5 animate-spin" /> Leaving...
-                                    </>
-                                ) : (
-                                    <>
-                                        <LogOut className="w-4 h-4" /> Leave Group
+                                        <AnimatedIcon name="Trash2" animation="shake" size={16} /> Delete Group
                                     </>
                                 )}
                             </button>
