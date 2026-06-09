@@ -1,10 +1,7 @@
 import React, { useMemo } from "react";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
-import {
-    Search, Lock, Unlock, AlignStartVertical, AlignEndVertical,
-    X, Loader2, LogOut, Bell, BellOff, BellRing, UserPlus
-} from "lucide-react";
+import AnimatedIcon from "@/components/common/AnimatedIcon";
 import { logo } from "@/assets/logo";
 import { isSameId, formatMessageTime } from "@/utils/chatHelpers";
 import Avatar from "./Avatar";
@@ -104,9 +101,9 @@ export default function Sidebar({
             <div className={`p-4 border-b border-border flex flex-col gap-3 transition-all ${isSidebarCollapsed ? "items-center px-2" : ""}`}>
                 <div className={`flex w-full ${isSidebarCollapsed ? "flex-col items-center gap-4" : "items-center justify-between"}`}>
                     <div className="flex items-center gap-2">
-                        <Image src={logo} alt="" width={35} className="shrink-0" />
+                        <Image src={logo} alt="" width={35} className="shrink-0 animate-pulse" />
                         {!isSidebarCollapsed && (
-                            <h1 className="text-xl font-bold tracking-tight text-foreground animate-fade-in">ChatX</h1>
+                            <h1 className="text-xl font-bold tracking-tight text-foreground animate-fade-in bg-linear-to-r from-white to-slate-400 bg-clip-text text-transparent">ChatX</h1>
                         )}
                     </div>
                     <div className={`flex items-center ${isSidebarCollapsed ? "flex-col gap-3" : "gap-2"}`}>
@@ -116,7 +113,7 @@ export default function Sidebar({
                                 className="p-2 rounded-full text-indigo-500 hover:bg-indigo-500/10 transition-colors cursor-pointer"
                                 title="Lock Vault"
                             >
-                                <Unlock className="w-4 h-4" />
+                                <AnimatedIcon name="Unlock" animation="unlock" size={16} />
                             </button>
                         )}
                         {!isSidebarCollapsed && !isSettingsOpen && (
@@ -125,7 +122,7 @@ export default function Sidebar({
                                 className="p-1.5 rounded-full hover:bg-muted text-muted-foreground hover:text-indigo-500 transition-all cursor-pointer"
                                 title="Create Group"
                             >
-                                <UserPlus className="w-5 h-5" />
+                                <AnimatedIcon name="UserPlus" animation="plus" size={20} />
                             </button>
                         )}
 
@@ -134,7 +131,11 @@ export default function Sidebar({
                             className="p-1.5 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground transition-all cursor-pointer hidden md:block"
                             title={isSidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
                         >
-                            {isSidebarCollapsed ? <AlignEndVertical className="w-5 h-5" /> : <AlignStartVertical className="w-5 h-5" />}
+                            {isSidebarCollapsed ? (
+                                <AnimatedIcon name="AlignEndVertical" animation="scale" size={20} />
+                            ) : (
+                                <AnimatedIcon name="AlignStartVertical" animation="scale" size={20} />
+                            )}
                         </button>
                     </div>
                 </div>
@@ -146,8 +147,8 @@ export default function Sidebar({
                         transition={{ duration: 0.3 }}
                         className="flex gap-2"
                     >
-                        <div className="relative flex-1">
-                            <Lock className="absolute left-2.5 top-2.5 w-4 h-4 text-muted-foreground" />
+                        <div className="relative flex-1 group">
+                            <AnimatedIcon name="Lock" animation="lock" size={16} className="absolute left-2.5 top-2.5 text-muted-foreground group-hover:text-indigo-400 transition-colors" />
                             <input
                                 type="password"
                                 placeholder={isVaultOpen ? "Vault open — tap 🔓 to close" : "Hidden vault PIN…"}
@@ -155,13 +156,13 @@ export default function Sidebar({
                                 value={pinInput}
                                 onChange={(e) => setPinInput(e.target.value)}
                                 onKeyDown={(e) => e.key === "Enter" && handleVaultToggle()}
-                                className="w-full pl-8 pr-3 py-2 rounded-lg bg-muted text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:opacity-50 transition-all"
+                                className="w-full pl-8 pr-3 py-2 rounded-lg bg-muted text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500/80 disabled:opacity-50 border border-transparent transition-all duration-300 focus:shadow-[0_0_10px_rgba(99,102,241,0.15)]"
                             />
                         </div>
                         {!isVaultOpen && (
                             <button
                                 onClick={handleVaultToggle}
-                                className="px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium transition-colors"
+                                className="px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium transition-all shadow-[0_2px_10px_rgba(99,102,241,0.2)] hover:shadow-[0_2px_15px_rgba(99,102,241,0.4)] active:scale-95 cursor-pointer"
                             >
                                 {pinError ? "Retry" : "Unlock"}
                             </button>
@@ -171,8 +172,8 @@ export default function Sidebar({
 
                 {/* Search bar */}
                 {!isSidebarCollapsed && !isSettingsOpen && (
-                    <div className="relative">
-                        <Search className="absolute left-3 top-2.5 w-4 h-4 text-muted-foreground" />
+                    <div className="relative group">
+                        <AnimatedIcon name="Search" animation="search" size={16} className="absolute left-3 top-2.5 text-muted-foreground group-hover:text-indigo-400 transition-colors" />
                         <input
                             type="text"
                             value={searchQuery}
@@ -181,12 +182,12 @@ export default function Sidebar({
                                 setIsSearching(true);
                             }}
                             placeholder="Search by Hike ID or email…"
-                            className="w-full pl-9 pr-8 py-2 rounded-xl bg-muted text-foreground focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-sm"
+                            className="w-full pl-9 pr-8 py-2 rounded-xl bg-muted text-foreground focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500/80 border border-transparent transition-all duration-300 text-sm focus:shadow-[0_0_10px_rgba(99,102,241,0.15)]"
                         />
                         {searchQuery && (
                             <button onClick={() => { setSearchQuery(""); }}
-                                className="absolute right-2.5 top-2.5 text-muted-foreground hover:text-foreground">
-                                <X className="w-4 h-4" />
+                                className="absolute right-2.5 top-2.5 text-muted-foreground hover:text-foreground cursor-pointer">
+                                <AnimatedIcon name="X" animation="scale" size={16} />
                             </button>
                         )}
                     </div>
@@ -200,7 +201,7 @@ export default function Sidebar({
                 <div className="flex-1 overflow-y-auto p-2 space-y-1">
                     {isSearching && (
                         <div className="flex justify-center py-6">
-                            <Loader2 className="w-5 h-5 animate-spin text-indigo-500" />
+                            <AnimatedIcon name="Loader2" animation="spin" size={20} className="text-indigo-500" />
                         </div>
                     )}
 
@@ -269,7 +270,7 @@ export default function Sidebar({
                             </AnimatePresence>
                         ) : (
                             <div className="flex flex-col items-center justify-center h-48 text-muted-foreground px-4 text-center">
-                                <Search className="w-10 h-10 opacity-20 mb-3" />
+                                <AnimatedIcon name="Search" animation="scale" size={40} className="opacity-20 mb-3 text-muted-foreground" />
                                 {searchQuery ? (
                                     <>
                                         <p className="text-sm font-medium">No users found</p>
@@ -339,14 +340,14 @@ export default function Sidebar({
                         >
                             {notificationPermission === "granted" ? (
                                 isNotificationMuted ? (
-                                    <BellOff className="w-5 h-5 animate-pulse" />
+                                    <AnimatedIcon name="BellOff" animation="scale" size={20} />
                                 ) : (
-                                    <Bell className="w-5 h-5" />
+                                    <AnimatedIcon name="Bell" animation="bell" size={20} />
                                 )
                             ) : notificationPermission === "denied" ? (
-                                <BellOff className="w-5 h-5" />
+                                <AnimatedIcon name="BellOff" animation="scale" size={20} />
                             ) : (
-                                <BellRing className="w-5 h-5" />
+                                <AnimatedIcon name="BellRing" animation="bell" size={20} />
                             )}
                         </button>
 
@@ -356,7 +357,7 @@ export default function Sidebar({
                             className="p-2 rounded-lg text-rose-500 hover:text-white hover:bg-rose-500/20 active:bg-rose-500/30 transition-all shrink-0 cursor-pointer"
                             title="Logout"
                         >
-                            <LogOut className="w-5 h-5" />
+                            <AnimatedIcon name="LogOut" animation="logout" size={20} />
                         </button>
                     </div>
                 </div>

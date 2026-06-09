@@ -1,6 +1,6 @@
 import React, { useRef } from "react";
 import { motion } from "framer-motion";
-import { Zap, Paperclip, Loader2, Send, X, Music, FileText } from "lucide-react";
+import AnimatedIcon from "@/components/common/AnimatedIcon";
 import { getSocket } from "@/utils/socket";
 import { isSameId } from "@/utils/chatHelpers";
 
@@ -114,7 +114,7 @@ export default function MessageComposer({
                         onClick={() => setReplyingToMessage(null)}
                         className="p-1 hover:bg-muted text-muted-foreground hover:text-foreground rounded-full transition-colors shrink-0 cursor-pointer"
                     >
-                        <X className="w-4 h-4" />
+                        <AnimatedIcon name="X" animation="scale" size={16} />
                     </button>
                 </div>
             )}
@@ -142,7 +142,7 @@ export default function MessageComposer({
                         }}
                         className="p-1 hover:bg-muted text-muted-foreground hover:text-foreground rounded-full transition-colors shrink-0 cursor-pointer"
                     >
-                        <X className="w-4 h-4" />
+                        <AnimatedIcon name="X" animation="scale" size={16} />
                     </button>
                 </div>
             )}
@@ -151,7 +151,7 @@ export default function MessageComposer({
             {isUploading && (
                 <div className="bg-card border-t border-x border-border max-w-4xl mx-auto rounded-t-2xl px-5 py-3 flex items-center justify-between gap-4 animate-slide-up shadow-xs">
                     <div className="flex items-center gap-2.5 overflow-hidden">
-                        <Loader2 className="w-4 h-4 animate-spin text-indigo-500 shrink-0" />
+                        <AnimatedIcon name="Loader2" animation="spin" size={16} className="text-indigo-500 shrink-0" />
                         <div className="flex flex-col truncate">
                             <span className="text-[10px] font-black uppercase tracking-wider text-indigo-500">
                                 Cloud Sharing Progress
@@ -180,11 +180,11 @@ export default function MessageComposer({
                             </div>
                         ) : pendingFile.type?.startsWith("audio/") ? (
                             <div className="w-10 h-10 rounded-lg bg-indigo-500/10 flex items-center justify-center shrink-0 border border-indigo-500/10 text-indigo-500">
-                                <Music className="w-5 h-5 animate-pulse" />
+                                <AnimatedIcon name="Music" animation="pulse" size={20} className="text-indigo-500" />
                             </div>
                         ) : (
                             <div className="w-10 h-10 rounded-lg bg-indigo-500/10 flex items-center justify-center shrink-0 border border-indigo-500/10 text-indigo-500">
-                                <FileText className="w-5 h-5" />
+                                <AnimatedIcon name="FileText" animation="scale" size={20} className="text-indigo-500" />
                             </div>
                         )}
 
@@ -209,7 +209,7 @@ export default function MessageComposer({
                         className="p-1 hover:bg-rose-500/10 text-rose-500 hover:text-rose-600 rounded-full transition-colors shrink-0 cursor-pointer"
                         title="Remove Attachment"
                     >
-                        <X className="w-4.5 h-4.5" />
+                        <AnimatedIcon name="X" animation="scale" size={18} />
                     </button>
                 </div>
             )}
@@ -226,10 +226,10 @@ export default function MessageComposer({
                         onClick={sendNudge}
                         whileHover={{ scale: 1.12 }}
                         whileTap={{ scale: 0.88 }}
-                        className="p-3 bg-amber-500/10 text-amber-500 hover:bg-amber-500 hover:text-white rounded-full transition-all shrink-0"
+                        className="p-3 bg-amber-500/10 text-amber-500 hover:bg-amber-500 hover:text-white rounded-full transition-all shrink-0 cursor-pointer"
                         title="Send a Nudge! ⚡"
                     >
-                        <Zap className="w-5 h-5" />
+                        <AnimatedIcon name="Zap" animation="bounce" size={20} />
                     </motion.button>
 
                     {/* File Attachment Button */}
@@ -243,9 +243,9 @@ export default function MessageComposer({
                         title="Share Media (Limit 100MB)"
                     >
                         {isUploading ? (
-                            <Loader2 className="w-5 h-5 animate-spin text-indigo-500" />
+                            <AnimatedIcon name="Loader2" animation="spin" size={20} className="text-indigo-500" />
                         ) : (
-                            <Paperclip className="w-5 h-5" />
+                            <AnimatedIcon name="Paperclip" animation="scale" size={20} />
                         )}
                     </motion.button>
                     <input
@@ -265,14 +265,18 @@ export default function MessageComposer({
                             onChange={handleTextareaChange}
                             onPaste={handlePaste}
                             disabled={isSending || isUploading}
-                            className="w-full pl-4 pr-12 py-3 rounded-2xl bg-muted text-foreground focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm disabled:opacity-50 transition-all resize-none overflow-y-auto max-h-32"
+                            className="w-full pl-4 pr-12 py-3 rounded-2xl bg-muted text-foreground focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500/80 border border-transparent text-sm disabled:opacity-50 transition-all duration-300 resize-none overflow-y-auto max-h-32 focus:shadow-[0_0_15px_rgba(99,102,241,0.15)]"
                         />
                         <button
                             type="submit"
                             disabled={isSending || isUploading || (!pendingFile && !messageInput.trim())}
-                            className="absolute right-2 bottom-2 p-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 text-white rounded-full transition-colors"
+                            className="absolute right-2 bottom-2.5 p-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 text-white rounded-full transition-colors cursor-pointer"
                         >
-                            {isSending || isUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4 ml-0.5" />}
+                            {isSending || isUploading ? (
+                                <AnimatedIcon name="Loader2" animation="spin" size={16} />
+                            ) : (
+                                <AnimatedIcon name="Send" animation="send" size={16} className="ml-0.5" />
+                            )}
                         </button>
                     </div>
                 </div>

@@ -2,9 +2,9 @@
 
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ShieldCheck, Mail, Lock, User, ArrowRight, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import AnimatedIcon from "@/components/common/AnimatedIcon";
 import { authIllustration } from "@/assets/illustrations";
 import { generateE2EEKeys, storePrivateKey, encryptPrivateKeyWithPassword, decryptPrivateKeyWithPassword } from "@/utils/crypto";
 import { logo } from "@/assets/logo";
@@ -363,7 +363,7 @@ export default function AuthPage() {
                         </motion.div>
                         <h1 className="text-3xl font-extrabold tracking-tight text-white">ChatX</h1>
                         <p className="text-sm text-slate-400 mt-2 flex items-center justify-center md:justify-start gap-1">
-                            <ShieldCheck className="w-4 h-4 text-emerald-400" /> End-to-End Encrypted
+                            <AnimatedIcon name="ShieldCheck" animation="pulse" size={16} className="text-emerald-400" /> End-to-End Encrypted
                         </p>
                     </div>
 
@@ -388,54 +388,54 @@ export default function AuthPage() {
                             onSubmit={handleSubmit}
                         >
                             {!isLogin && (
-                                <div className="relative">
-                                    <User className="absolute left-3.5 top-3.5 w-5 h-5 text-slate-400" />
+                                <div className="relative group">
+                                    <AnimatedIcon name="User" animation="scale" size={20} className="absolute left-3.5 top-3.5 text-slate-400 group-hover:text-indigo-400 transition-colors" />
                                     <input
                                         type="text"
                                         placeholder="Hike ID (e.g. alex)"
                                         value={formData.hikeId}
                                         onChange={(e) => setFormData({ ...formData, hikeId: e.target.value })}
-                                        className="w-full pl-11 pr-4 py-3 rounded-xl border border-slate-800 bg-slate-950/40 focus:bg-slate-950/80 focus:border-indigo-500/60 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all text-white placeholder-slate-500"
+                                        className="w-full pl-11 pr-4 py-3 rounded-xl border border-slate-800 bg-slate-950/40 focus:bg-slate-950/80 focus:border-indigo-500/80 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition-all duration-300 text-white placeholder-slate-500 focus:shadow-[0_0_15px_rgba(99,102,241,0.2)]"
                                         required
                                     />
                                 </div>
                             )}
                             {/* LOGIN: single identifier field (email OR hikeId) */}
                             {isLogin && (
-                                <div className="relative">
-                                    <Mail className="absolute left-3.5 top-3.5 w-5 h-5 text-slate-400" />
+                                <div className="relative group">
+                                    <AnimatedIcon name="Mail" animation="shake" size={20} className="absolute left-3.5 top-3.5 text-slate-400 group-hover:text-indigo-400 transition-colors" />
                                     <input
                                         type="text"
                                         placeholder="Email or Hike ID (e.g. alex)"
                                         value={formData.identifier}
                                         onChange={(e) => setFormData({ ...formData, identifier: e.target.value })}
-                                        className="w-full pl-11 pr-4 py-3 rounded-xl border border-slate-800 bg-slate-950/40 focus:bg-slate-950/80 focus:border-indigo-500/60 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all text-white placeholder-slate-500"
+                                        className="w-full pl-11 pr-4 py-3 rounded-xl border border-slate-800 bg-slate-950/40 focus:bg-slate-950/80 focus:border-indigo-500/80 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition-all duration-300 text-white placeholder-slate-500 focus:shadow-[0_0_15px_rgba(99,102,241,0.2)]"
                                         required
                                     />
                                 </div>
                             )}
                             {/* SIGNUP: separate email field */}
                             {!isLogin && (
-                                <div className="relative">
-                                    <Mail className="absolute left-3.5 top-3.5 w-5 h-5 text-slate-400" />
+                                <div className="relative group">
+                                    <AnimatedIcon name="Mail" animation="shake" size={20} className="absolute left-3.5 top-3.5 text-slate-400 group-hover:text-indigo-400 transition-colors" />
                                     <input
                                         type="email"
                                         placeholder="Email Address"
                                         value={formData.email}
                                         onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                                        className="w-full pl-11 pr-4 py-3 rounded-xl border border-slate-800 bg-slate-950/40 focus:bg-slate-950/80 focus:border-indigo-500/60 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all text-white placeholder-slate-500"
+                                        className="w-full pl-11 pr-4 py-3 rounded-xl border border-slate-800 bg-slate-950/40 focus:bg-slate-950/80 focus:border-indigo-500/80 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition-all duration-300 text-white placeholder-slate-500 focus:shadow-[0_0_15px_rgba(99,102,241,0.2)]"
                                         required
                                     />
                                 </div>
                             )}
-                            <div className="relative">
-                                <Lock className="absolute left-3.5 top-3.5 w-5 h-5 text-slate-400" />
+                            <div className="relative group">
+                                <AnimatedIcon name="Lock" animation="lock" size={20} className="absolute left-3.5 top-3.5 text-slate-400 group-hover:text-indigo-400 transition-colors" />
                                 <input
                                     type="password"
                                     placeholder="Password"
                                     value={formData.password}
                                     onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                                    className="w-full pl-11 pr-4 py-3 rounded-xl border border-slate-800 bg-slate-950/40 focus:bg-slate-950/80 focus:border-indigo-500/60 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all text-white placeholder-slate-500"
+                                    className="w-full pl-11 pr-4 py-3 rounded-xl border border-slate-800 bg-slate-950/40 focus:bg-slate-950/80 focus:border-indigo-500/80 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition-all duration-300 text-white placeholder-slate-500 focus:shadow-[0_0_15px_rgba(99,102,241,0.2)]"
                                     required
                                 />
                             </div>
@@ -447,11 +447,11 @@ export default function AuthPage() {
                                 className="w-full py-3.5 mt-4 bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 disabled:opacity-50 text-white rounded-xl font-medium shadow-[0_4px_20px_rgba(99,102,241,0.25)] flex items-center justify-center gap-2 transition-colors cursor-pointer"
                             >
                                 {loading ? (
-                                    <Loader2 className="w-5 h-5 animate-spin" />
+                                    <AnimatedIcon name="Loader2" animation="spin" size={20} className="text-white" />
                                 ) : (
                                     <>
                                         {isLogin ? "Sign In" : "Create Account"}
-                                        <ArrowRight className="w-4 h-4" />
+                                        <AnimatedIcon name="ArrowRight" animation="logout" size={16} className="text-white" />
                                     </>
                                 )}
                             </motion.button>

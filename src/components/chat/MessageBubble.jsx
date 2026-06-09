@@ -1,6 +1,6 @@
 import React from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Smile, CornerUpLeft, Pencil, Trash } from "lucide-react";
+import AnimatedIcon from "@/components/common/AnimatedIcon";
 import { getSocket } from "@/utils/socket";
 import { isSameId, getEmojiOnlyCount, formatBubbleTime } from "@/utils/chatHelpers";
 import MediaAttachment from "./MediaAttachment";
@@ -66,7 +66,7 @@ export default function MessageBubble({
                             className="p-1 hover:bg-muted text-muted-foreground hover:text-foreground rounded-full transition-colors cursor-pointer animate-fade-in"
                             title="React"
                         >
-                            <Smile className="w-3.5 h-3.5" />
+                            <AnimatedIcon name="Smile" animation="scale" size={14} />
                         </button>
 
                         <AnimatePresence>
@@ -115,7 +115,7 @@ export default function MessageBubble({
                         className="p-1 hover:bg-muted text-muted-foreground hover:text-foreground rounded-full transition-colors cursor-pointer animate-fade-in"
                         title="Reply"
                     >
-                        <CornerUpLeft className="w-3.5 h-3.5" />
+                        <AnimatedIcon name="CornerUpLeft" animation="scale" size={14} />
                     </button>
 
                     {/* Edit icon (Only for own messages sent within 1 hour) */}
@@ -132,7 +132,7 @@ export default function MessageBubble({
                             className="p-1 hover:bg-muted text-muted-foreground hover:text-foreground rounded-full transition-colors cursor-pointer animate-fade-in"
                             title="Edit"
                         >
-                            <Pencil className="w-3.5 h-3.5" />
+                            <AnimatedIcon name="Pencil" animation="bounce" size={14} />
                         </button>
                     )}
 
@@ -143,7 +143,7 @@ export default function MessageBubble({
                             className="p-1 hover:bg-rose-500/10 text-rose-500 rounded-full transition-colors cursor-pointer animate-fade-in"
                             title="Unsend"
                         >
-                            <Trash className="w-3.5 h-3.5" />
+                            <AnimatedIcon name="Trash" animation="shake" size={14} />
                         </button>
                     )}
                 </div>
@@ -176,9 +176,9 @@ export default function MessageBubble({
                         transition={{ type: "spring", bounce: 0.25, duration: 0.3 }}
                         className={isOnlyEmoji
                             ? `relative p-0 select-none bg-transparent border-none shadow-none ${isMine ? "text-right" : "text-left"}`
-                            : `px-4 py-2.5 rounded-2xl shadow-xs relative ${isMine
-                                ? "bg-indigo-600 text-white rounded-br-sm"
-                                : "bg-card text-foreground rounded-bl-sm border border-border"}`}
+                            : `px-4 py-2.5 rounded-2xl shadow-md relative ${isMine
+                                ? "bg-gradient-to-br from-indigo-600 via-indigo-700 to-purple-600 text-white rounded-br-sm shadow-[0_4px_15px_rgba(99,102,241,0.2)]"
+                                : "bg-slate-900/35 backdrop-blur-md text-foreground rounded-bl-sm border border-slate-800/80 shadow-[0_4px_15px_rgba(0,0,0,0.15)]"}`}
                     >
                 {/* Reply Quote Block inside bubble */}
                 {msg.replyTo && (() => {

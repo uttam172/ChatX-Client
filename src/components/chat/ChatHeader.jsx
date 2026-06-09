@@ -1,6 +1,6 @@
 import React from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ChevronLeft, Phone, Video, MoreVertical, Trash, Unlock, Lock, ShieldCheck } from "lucide-react";
+import AnimatedIcon from "@/components/common/AnimatedIcon";
 import { isSameId } from "@/utils/chatHelpers";
 import Avatar from "./Avatar";
 
@@ -35,10 +35,10 @@ export default function ChatHeader({
                         e.stopPropagation();
                         setActiveChat(null);
                     }}
-                    className="p-1.5 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground transition-colors mr-1 cursor-pointer"
+                    className="p-1.5 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground transition-colors mr-1 cursor-pointer flex items-center justify-center"
                     title="Back to Chats"
                 >
-                    <ChevronLeft className="w-6 h-6" />
+                    <AnimatedIcon name="ChevronLeft" animation="logout" size={24} />
                 </button>
 
                 <div
@@ -87,18 +87,18 @@ export default function ChatHeader({
                     <>
                         <button
                             onClick={() => startCall("voice")}
-                            className="hover:text-indigo-500 transition-colors cursor-pointer"
+                            className="p-1.5 rounded-full hover:bg-muted hover:text-indigo-500 transition-colors cursor-pointer"
                             title="Voice Call"
                         >
-                            <Phone className="w-5 h-5" />
+                            <AnimatedIcon name="Phone" animation="bounce" size={20} />
                         </button>
 
                         <button
                             onClick={() => startCall("video")}
-                            className="hover:text-indigo-500 transition-colors cursor-pointer"
+                            className="p-1.5 rounded-full hover:bg-muted hover:text-indigo-500 transition-colors cursor-pointer"
                             title="Video Call"
                         >
-                            <Video className="w-5 h-5" />
+                            <AnimatedIcon name="Video" animation="bounce" size={20} />
                         </button>
                     </>
                 )}
@@ -106,10 +106,10 @@ export default function ChatHeader({
                 <div className="relative">
                     <button
                         onClick={() => setIsMenuOpen(prev => !prev)}
-                        className="hover:text-indigo-500 transition-colors p-1 rounded-full hover:bg-muted cursor-pointer"
+                        className="hover:text-indigo-500 transition-colors p-1.5 rounded-full hover:bg-muted cursor-pointer"
                         title="More Options"
                     >
-                        <MoreVertical className="w-5 h-5" />
+                        <AnimatedIcon name="MoreVertical" animation="scale" size={20} />
                     </button>
 
                     {/* Dropdown Menu */}
@@ -133,7 +133,7 @@ export default function ChatHeader({
                                                 onClick={handleClearChat}
                                                 className="w-full text-left px-4 py-2 text-sm hover:bg-rose-500/10 text-rose-500 flex items-center gap-2.5 transition-colors font-medium cursor-pointer"
                                             >
-                                                <Trash className="w-4 h-4" />
+                                                <AnimatedIcon name="Trash" animation="shake" size={16} />
                                                 Clear Chat History
                                             </button>
 
@@ -143,12 +143,12 @@ export default function ChatHeader({
                                             >
                                                 {isChatHidden ? (
                                                     <>
-                                                        <Unlock className="w-4 h-4 text-indigo-500" />
+                                                        <AnimatedIcon name="Unlock" animation="unlock" size={16} className="text-indigo-500" />
                                                         Unhide Conversation
                                                     </>
                                                 ) : (
                                                     <>
-                                                        <Lock className="w-4 h-4 text-indigo-500" />
+                                                        <AnimatedIcon name="Lock" animation="lock" size={16} className="text-indigo-500" />
                                                         Hide Conversation
                                                     </>
                                                 )}
@@ -163,7 +163,7 @@ export default function ChatHeader({
                                         }}
                                         className="w-full text-left px-4 py-2 text-sm hover:bg-muted text-foreground flex items-center gap-2.5 transition-colors font-medium border-t border-border mt-1 cursor-pointer"
                                     >
-                                        <ShieldCheck className="w-4 h-4 text-emerald-500" />
+                                        <AnimatedIcon name="ShieldCheck" animation="pulse" size={16} className="text-emerald-500" />
                                         View Encryption Info
                                     </button>
                                 </motion.div>
