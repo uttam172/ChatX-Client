@@ -28,7 +28,7 @@ import E2EEInfoModal from "@/components/chat/modals/E2EEInfoModal";
 import EmojiPickerModal from "@/components/chat/modals/EmojiPickerModal";
 import LightboxModal from "@/components/chat/modals/LightboxModal";
 import CreateGroupModal from "@/components/chat/modals/CreateGroupModal";
-import ChatDetailsModal from "@/components/chat/modals/ChatDetailsModal";
+import ChatDetailsPage from "@/components/chat/ChatDetailsPage";
 import GroupDetailsPage from "@/components/chat/GroupDetailsPage";
 
 // Utilities
@@ -249,7 +249,10 @@ export default function ChatPage() {
     const [mounted, setMounted] = useState(false);
 
     useEffect(() => {
-        setMounted(true);
+        const timer = setTimeout(() => {
+            setMounted(true);
+        }, 0);
+        return () => clearTimeout(timer);
     }, []);
 
     const messagesEndRef = useRef(null);
@@ -381,11 +384,20 @@ export default function ChatPage() {
             console.error("Failed to update chat theme:", err);
             showAlert("Error", err.message || "Failed to update chat theme.");
         }
-    }, [fetchChatSettings]);
+    }, [fetchChatSettings, showAlert]);
 
     // Fetch chat settings on mount & when activeChat changes
     useEffect(() => {
-        fetchChatSettings();
+        let active = true;
+        const timer = setTimeout(() => {
+            if (active) {
+                fetchChatSettings();
+            }
+        }, 0);
+        return () => {
+            active = false;
+            clearTimeout(timer);
+        };
     }, [fetchChatSettings, activeChat]);
 
     // Fetch message history with selected contact/group and decrypt it
@@ -760,6 +772,7 @@ export default function ChatPage() {
 
     // ── Auth & Socket setup ─────────────────────────────────
     useEffect(() => {
+        let usersTimer;
         const token = localStorage.getItem("token");
         const user = localStorage.getItem("user");
         if (!token || !user) {
@@ -808,7 +821,9 @@ export default function ChatPage() {
                     })
                     .catch(() => setHasPrivateKey(false));
             });
-        fetchUsers();
+        usersTimer = setTimeout(() => {
+            fetchUsers();
+        }, 0);
         initiateSocketConnection(token);
         const socket = getSocket();
 
@@ -1419,6 +1434,7 @@ export default function ChatPage() {
         });
 
         return () => {
+            if (usersTimer) clearTimeout(usersTimer);
             disconnectSocket();
             if (callTimeoutRef.current) clearTimeout(callTimeoutRef.current);
             if (callingAudioRef.current) callingAudioRef.current.pause();
@@ -2330,6 +2346,16 @@ export default function ChatPage() {
                     onUpdateTheme={handleUpdateChatTheme}
                     chatSettings={chatSettings}
                 />
+            ) : isChatDetailsOpen && !activeChat?.isGroup ? (
+                <ChatDetailsPage
+                    key={activeChat?._id}
+                    activeChat={activeChat}
+                    onlineStatuses={onlineStatuses}
+                    formatLastSeenText={formatLastSeenText}
+                    onClose={() => setIsChatDetailsOpen(false)}
+                    onUpdateTheme={handleUpdateChatTheme}
+                    chatSettings={chatSettings}
+                />
             ) : (
                 <ChatArea
                     activeChat={activeChat}
@@ -2455,23 +2481,6 @@ export default function ChatPage() {
                 )}
             </AnimatePresence>
 
-            <AnimatePresence>
-                {isChatDetailsOpen && (
-                    <ChatDetailsModal
-                        key={activeChat?._id}
-                        activeChat={activeChat}
-                        currentUser={currentUser}
-                        allUsers={allUsers}
-                        onlineStatuses={onlineStatuses}
-                        formatLastSeenText={formatLastSeenText}
-                        isOpen={isChatDetailsOpen}
-                        onClose={() => setIsChatDetailsOpen(false)}
-                        onUpdateGroup={handleUpdateGroup}
-                        onUpdateTheme={handleUpdateChatTheme}
-                        chatSettings={chatSettings}
-                    />
-                )}
-            </AnimatePresence>
 
             {/* Custom Prompt Modal */}
             <AnimatePresence>

@@ -62,6 +62,7 @@ export default function ChatArea({
     onViewDetails
 }) {
     const theme = getChatTheme(chatSettings, activeChat);
+    const isImageBg = theme.isCustomImage || (theme.background && theme.background.includes("url("));
 
     return (
         <motion.div
@@ -72,17 +73,18 @@ export default function ChatArea({
                 activeChat ? "flex w-full" : "hidden md:flex"
             } ${nudgeShake ? "animate-shake" : ""}`}
             style={
-                theme.isCustomImage 
+                isImageBg 
                     ? { 
                         backgroundImage: theme.background, 
                         backgroundSize: "cover", 
-                        backgroundPosition: "center" 
+                        backgroundPosition: "center",
+                        backgroundRepeat: "no-repeat"
                       } 
                     : { background: theme.background }
             }
         >
-            {/* Custom Image Dark Overlay */}
-            {theme.isCustomImage && (
+            {/* Image Background Dark Overlay */}
+            {isImageBg && (
                 <div className="absolute inset-0 bg-slate-950/45 pointer-events-none z-0" />
             )}
             {/* Drag and Drop Blur Dropzone Overlay */}

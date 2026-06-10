@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useRef } from "react";
 import { motion } from "framer-motion";
 import { 
-    ChevronLeft, Users, Check, Search, Trash2, LogOut, Camera, 
+    ChevronLeft, Users, Check, Search, Trash2, Camera, 
     Loader2, Sparkles, Shield, Info, Plus
 } from "lucide-react";
 import { isSameId } from "@/utils/chatHelpers";
@@ -853,7 +853,7 @@ export default function GroupDetailsPage({
 
                 <div className="space-y-4">
                     {/* Preinstalled Themes Grid */}
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-7 gap-3">
                         {Object.values(chatThemes).map((themeObj) => {
                             const isSelected = activeThemeId === themeObj.id && !currentSetting?.customBackground;
                             return (
@@ -869,7 +869,11 @@ export default function GroupDetailsPage({
                                 >
                                     <div 
                                         className="w-10 h-10 rounded-full border border-border/50 shadow-inner"
-                                        style={{ background: themeObj.previewBg || themeObj.background }}
+                                        style={{ 
+                                            backgroundImage: themeObj.previewBg || themeObj.background,
+                                            backgroundSize: "cover",
+                                            backgroundPosition: "center"
+                                        }}
                                     />
                                     <span className="text-[11px] font-bold text-foreground truncate w-full text-center">
                                         {themeObj.name}
