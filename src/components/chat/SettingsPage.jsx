@@ -982,7 +982,7 @@ export default function SettingsPage({
                                     <h4 className="text-xs font-bold text-foreground">System Default</h4>
                                     <p className="text-[10px] text-muted-foreground mt-1">Syncs with system settings</p>
                                 </div>
-                                <div className="w-full h-8 rounded-lg bg-gradient-to-r from-slate-50 to-slate-900 border border-slate-200 p-1.5 flex gap-1.5 items-center justify-center">
+                                <div className="w-full h-8 rounded-lg bg-linear-to-r from-slate-50 to-slate-900 p-1.5 flex gap-1.5 items-center justify-center">
                                     <div className="w-2.5 h-2.5 rounded-full bg-indigo-500 shrink-0 animate-pulse" />
                                     <div className="h-1.5 w-10 rounded bg-indigo-500/30" />
                                 </div>

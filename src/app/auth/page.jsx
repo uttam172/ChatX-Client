@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
+import { useTheme } from "next-themes";
 import Image from "next/image";
 import AnimatedIcon from "@/components/common/AnimatedIcon";
 import { authIllustration } from "@/assets/illustrations";
@@ -53,6 +54,12 @@ export default function AuthPage() {
     const [isLogin, setIsLogin] = useState(true);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
+    const { setTheme } = useTheme();
+
+    // Always use the browser (system) theme on the auth screen
+    useEffect(() => {
+        setTheme("system");
+    }, [setTheme]);
 
     const [formData, setFormData] = useState({
         identifier: "",  // email OR hikeId (login)
@@ -191,11 +198,11 @@ export default function AuthPage() {
     ];
 
     return (
-        <div className="min-h-screen w-full flex items-center justify-center bg-black relative overflow-hidden selection:bg-indigo-500/30 selection:text-white py-12 md:py-16">
+        <div className="min-h-screen w-full flex items-center justify-center bg-slate-50 dark:bg-black relative overflow-hidden selection:bg-indigo-500/30 selection:text-indigo-900 dark:selection:text-white py-12 md:py-16">
 
             {/* Sleek structural grid pattern overlay for extra visual depth */}
             <div
-                className="absolute inset-0 bg-[linear-gradient(to_right,#0c0f1d_1px,transparent_1px),linear-gradient(to_bottom,#0c0f1d_1px,transparent_1px)] bg-size-[4rem_4rem] mask-[radial-gradient(ellipse_60%_50%_at_50%_50%,#000_70%,transparent_100%)] opacity-40 pointer-events-none"
+                className="absolute inset-0 bg-[linear-gradient(to_right,#e2e8f0_1px,transparent_1px),linear-gradient(to_bottom,#e2e8f0_1px,transparent_1px)] dark:bg-[linear-gradient(to_right,#0c0f1d_1px,transparent_1px),linear-gradient(to_bottom,#0c0f1d_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_50%,#000_70%,transparent_100%)] opacity-40 pointer-events-none"
             />
 
             {/* Smooth GPU-Accelerated Floating Blobs traveling randomly across the viewport */}
@@ -277,13 +284,13 @@ export default function AuthPage() {
                 initial={{ opacity: 0, scale: 0.96, y: 15 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-                className="w-full max-w-5xl bg-slate-950/40 border border-slate-800/60 backdrop-blur-3xl rounded-3xl z-10 mx-4 shadow-[0_0_80px_-15px_rgba(99,102,241,0.2)] grid grid-cols-1 md:grid-cols-12 overflow-hidden relative min-h-150"
+                className="w-full max-w-5xl bg-white/60 dark:bg-slate-950/40 border border-slate-200/60 dark:border-slate-800/60 backdrop-blur-3xl rounded-3xl z-10 mx-4 shadow-[0_0_80px_-15px_rgba(99,102,241,0.2)] grid grid-cols-1 md:grid-cols-12 overflow-hidden relative min-h-[600px]"
             >
                 {/* Subtle internal glowing border shine effect */}
-                <div className="absolute inset-0 border border-white/5 rounded-3xl pointer-events-none" />
+                <div className="absolute inset-0 border border-slate-900/5 dark:border-white/5 rounded-3xl pointer-events-none" />
 
                 {/* LEFT COLUMN: Majestic static/animated illustration column (Desktop only) */}
-                <div className="hidden md:flex md:col-span-6 flex-col justify-center items-center p-12 bg-linear-to-br from-slate-950/60 via-slate-900/30 to-indigo-950/15 border-r border-slate-800/40 relative overflow-hidden">
+                <div className="hidden md:flex md:col-span-6 flex-col justify-center items-center p-12 bg-gradient-to-br from-slate-100/60 via-white/30 to-indigo-50/15 dark:from-slate-950/60 dark:via-slate-900/30 dark:to-indigo-950/15 border-r border-slate-200/40 dark:border-slate-800/40 relative overflow-hidden">
 
                     {/* Subtle animated light reflection overlay */}
                     <motion.div
@@ -317,10 +324,10 @@ export default function AuthPage() {
                         transition={{ delay: 0.25, duration: 0.5 }}
                         className="text-center mt-8 relative z-10"
                     >
-                        <h2 className="text-2xl font-extrabold text-white tracking-tight bg-linear-to-r from-white via-slate-100 to-slate-400 bg-clip-text">
+                        <h2 className="text-2xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-slate-800 via-slate-600 to-slate-500 dark:from-white dark:via-slate-100 dark:to-slate-400">
                             Secure E2EE Messaging
                         </h2>
-                        <p className="text-sm text-slate-400 mt-2.5 max-w-xs leading-relaxed">
+                        <p className="text-sm text-slate-500 dark:text-slate-400 mt-2.5 max-w-xs leading-relaxed">
                             Your messages are encrypted locally using state-of-the-art E2EE cryptosystems before sending. Complete privacy, absolute zero compromise.
                         </p>
                     </motion.div>
@@ -361,9 +368,9 @@ export default function AuthPage() {
                                 loading="eager"
                             />
                         </motion.div>
-                        <h1 className="text-3xl font-extrabold tracking-tight text-white">ChatX</h1>
-                        <p className="text-sm text-slate-400 mt-2 flex items-center justify-center md:justify-start gap-1">
-                            <AnimatedIcon name="ShieldCheck" animation="pulse" size={16} className="text-emerald-400" /> End-to-End Encrypted
+                        <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">ChatX</h1>
+                        <p className="text-sm text-slate-500 dark:text-slate-400 mt-2 flex items-center justify-center md:justify-start gap-1">
+                            <AnimatedIcon name="ShieldCheck" animation="pulse" size={16} className="text-emerald-500 dark:text-emerald-400" /> End-to-End Encrypted
                         </p>
                     </div>
 
@@ -371,7 +378,7 @@ export default function AuthPage() {
                         <motion.div
                             initial={{ opacity: 0, y: -10 }}
                             animate={{ opacity: 1, y: 0 }}
-                            className="mb-4 p-3 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400 text-sm text-center font-medium"
+                            className="mb-4 p-3 bg-red-100 dark:bg-red-500/10 border border-red-200 dark:border-red-500/30 rounded-xl text-red-600 dark:text-red-400 text-sm text-center font-medium"
                         >
                             {error}
                         </motion.div>
@@ -389,13 +396,13 @@ export default function AuthPage() {
                         >
                             {!isLogin && (
                                 <div className="relative group">
-                                    <AnimatedIcon name="User" animation="scale" size={20} className="absolute left-3.5 top-3.5 text-slate-400 group-hover:text-indigo-400 transition-colors" />
+                                    <AnimatedIcon name="User" animation="scale" size={20} className="absolute left-3.5 top-3.5 text-slate-400 dark:text-slate-500 group-hover:text-indigo-500 dark:group-hover:text-indigo-400 transition-colors" />
                                     <input
                                         type="text"
                                         placeholder="Hike ID (e.g. alex)"
                                         value={formData.hikeId}
                                         onChange={(e) => setFormData({ ...formData, hikeId: e.target.value })}
-                                        className="w-full pl-11 pr-4 py-3 rounded-xl border border-slate-800 bg-slate-950/40 focus:bg-slate-950/80 focus:border-indigo-500/80 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition-all duration-300 text-white placeholder-slate-500 focus:shadow-[0_0_15px_rgba(99,102,241,0.2)]"
+                                        className="w-full pl-11 pr-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white/50 dark:bg-slate-950/40 focus:bg-white/90 dark:focus:bg-slate-950/80 focus:border-indigo-500/80 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition-all duration-300 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:shadow-[0_0_15px_rgba(99,102,241,0.1)] dark:focus:shadow-[0_0_15px_rgba(99,102,241,0.2)]"
                                         required
                                     />
                                 </div>
@@ -403,13 +410,13 @@ export default function AuthPage() {
                             {/* LOGIN: single identifier field (email OR hikeId) */}
                             {isLogin && (
                                 <div className="relative group">
-                                    <AnimatedIcon name="Mail" animation="shake" size={20} className="absolute left-3.5 top-3.5 text-slate-400 group-hover:text-indigo-400 transition-colors" />
+                                    <AnimatedIcon name="Mail" animation="shake" size={20} className="absolute left-3.5 top-3.5 text-slate-400 dark:text-slate-500 group-hover:text-indigo-500 dark:group-hover:text-indigo-400 transition-colors" />
                                     <input
                                         type="text"
                                         placeholder="Email or Hike ID (e.g. alex)"
                                         value={formData.identifier}
                                         onChange={(e) => setFormData({ ...formData, identifier: e.target.value })}
-                                        className="w-full pl-11 pr-4 py-3 rounded-xl border border-slate-800 bg-slate-950/40 focus:bg-slate-950/80 focus:border-indigo-500/80 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition-all duration-300 text-white placeholder-slate-500 focus:shadow-[0_0_15px_rgba(99,102,241,0.2)]"
+                                        className="w-full pl-11 pr-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white/50 dark:bg-slate-950/40 focus:bg-white/90 dark:focus:bg-slate-950/80 focus:border-indigo-500/80 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition-all duration-300 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:shadow-[0_0_15px_rgba(99,102,241,0.1)] dark:focus:shadow-[0_0_15px_rgba(99,102,241,0.2)]"
                                         required
                                     />
                                 </div>
@@ -417,25 +424,25 @@ export default function AuthPage() {
                             {/* SIGNUP: separate email field */}
                             {!isLogin && (
                                 <div className="relative group">
-                                    <AnimatedIcon name="Mail" animation="shake" size={20} className="absolute left-3.5 top-3.5 text-slate-400 group-hover:text-indigo-400 transition-colors" />
+                                    <AnimatedIcon name="Mail" animation="shake" size={20} className="absolute left-3.5 top-3.5 text-slate-400 dark:text-slate-500 group-hover:text-indigo-500 dark:group-hover:text-indigo-400 transition-colors" />
                                     <input
                                         type="email"
                                         placeholder="Email Address"
                                         value={formData.email}
                                         onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                                        className="w-full pl-11 pr-4 py-3 rounded-xl border border-slate-800 bg-slate-950/40 focus:bg-slate-950/80 focus:border-indigo-500/80 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition-all duration-300 text-white placeholder-slate-500 focus:shadow-[0_0_15px_rgba(99,102,241,0.2)]"
+                                        className="w-full pl-11 pr-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white/50 dark:bg-slate-950/40 focus:bg-white/90 dark:focus:bg-slate-950/80 focus:border-indigo-500/80 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition-all duration-300 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:shadow-[0_0_15px_rgba(99,102,241,0.1)] dark:focus:shadow-[0_0_15px_rgba(99,102,241,0.2)]"
                                         required
                                     />
                                 </div>
                             )}
                             <div className="relative group">
-                                <AnimatedIcon name="Lock" animation="lock" size={20} className="absolute left-3.5 top-3.5 text-slate-400 group-hover:text-indigo-400 transition-colors" />
+                                <AnimatedIcon name="Lock" animation="lock" size={20} className="absolute left-3.5 top-3.5 text-slate-400 dark:text-slate-500 group-hover:text-indigo-500 dark:group-hover:text-indigo-400 transition-colors" />
                                 <input
                                     type="password"
                                     placeholder="Password"
                                     value={formData.password}
                                     onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                                    className="w-full pl-11 pr-4 py-3 rounded-xl border border-slate-800 bg-slate-950/40 focus:bg-slate-950/80 focus:border-indigo-500/80 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition-all duration-300 text-white placeholder-slate-500 focus:shadow-[0_0_15px_rgba(99,102,241,0.2)]"
+                                    className="w-full pl-11 pr-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white/50 dark:bg-slate-950/40 focus:bg-white/90 dark:focus:bg-slate-950/80 focus:border-indigo-500/80 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition-all duration-300 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:shadow-[0_0_15px_rgba(99,102,241,0.1)] dark:focus:shadow-[0_0_15px_rgba(99,102,241,0.2)]"
                                     required
                                 />
                             </div>
@@ -459,7 +466,7 @@ export default function AuthPage() {
                     </AnimatePresence>
 
                     <div className="mt-6 text-center md:text-left text-sm">
-                        <span className="text-slate-400">
+                        <span className="text-slate-500 dark:text-slate-400">
                             {isLogin ? "Don't have an account?" : "Already have an account?"}
                         </span>
                         <button
@@ -468,7 +475,7 @@ export default function AuthPage() {
                                 setIsLogin(!isLogin);
                                 setError("");
                             }}
-                            className="ml-2 text-indigo-400 hover:text-indigo-300 font-semibold hover:underline transition-all cursor-pointer"
+                            className="ml-2 text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 font-semibold hover:underline transition-all cursor-pointer"
                         >
                             {isLogin ? "Sign up" : "Sign in"}
                         </button>

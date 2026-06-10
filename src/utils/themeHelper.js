@@ -3,7 +3,7 @@ export const chatThemes = {
         id: "default",
         name: "Default",
         background: "linear-gradient(135deg, var(--color-background), var(--color-muted))",
-        previewBg: "linear-gradient(135deg, #0b0f19, #1a2035)",
+        previewBg: "linear-gradient(135deg, #FFFFFF, #0B1340)",
         bubbleSent: "bg-radial-[at_25%_20%] from-sky-400 via-blue-400 to-indigo-900 to-90% text-white rounded-br-sm shadow-[0_4px_15px_rgba(99,102,241,0.2)]",
         bubbleReceived: "bg-radial-[at_25%_20%] from-gray-400 to-zinc-500 to-75% backdrop-blur-md text-white rounded-bl-sm shadow-[0_4px_15px_rgba(0,0,0,0.15)]",
         accentColor: "indigo"

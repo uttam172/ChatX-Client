@@ -32,8 +32,8 @@
     --color-destructive: hsl(0 84.2% 60.2%);
     --color-destructive-foreground: hsl(210 40% 98%);
 
-    --color-border: hsl(214.3 31.8% 91.4%);
-    --color-input: hsl(214.3 31.8% 91.4%);
+    --color-border: transparent;
+    --color-input: transparent;
     --color-ring: hsl(221.2 83.2% 53.3%);
 
     --radius: 0.5rem;
@@ -67,8 +67,8 @@
     --color-destructive: hsl(0 62.8% 30.6%);
     --color-destructive-foreground: hsl(210 40% 98%);
 
-    --color-border: hsl(217.2 32.6% 17.5%);
-    --color-input: hsl(217.2 32.6% 17.5%);
+    --color-border: transparent;
+    --color-input: transparent;
     --color-ring: hsl(212.7 26.8% 83.9%);
 }
 
@@ -79,7 +79,7 @@
 *::before,
 *::after {
     box-sizing: border-box;
-    border-color: var(--color-border);
+    border-color: transparent;
     /* font-family: "Nunito", "DM Sans", sans-serif; */
 }
 

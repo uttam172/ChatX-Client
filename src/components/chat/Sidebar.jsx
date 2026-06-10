@@ -103,7 +103,7 @@ export default function Sidebar({
                     <div className="flex items-center gap-2">
                         <Image src={logo} alt="" width={35} className="shrink-0 animate-pulse" />
                         {!isSidebarCollapsed && (
-                            <h1 className="text-xl font-bold tracking-tight text-foreground animate-fade-in bg-linear-to-r from-white to-slate-400 bg-clip-text text-transparent">ChatX</h1>
+                            <h1 className="text-xl font-bold tracking-tight animate-fade-in bg-linear-to-r from-white to-slate-400 bg-clip-text text-transparent">ChatX</h1>
                         )}
                     </div>
                     <div className={`flex items-center ${isSidebarCollapsed ? "flex-col gap-3" : "gap-2"}`}>

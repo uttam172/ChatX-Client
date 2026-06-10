@@ -258,7 +258,7 @@ export default function ChatDetailsPage({
                                     }`}
                                 >
                                     <div 
-                                        className="w-10 h-10 rounded-full border border-border/50 shadow-inner"
+                                        className="w-10 h-10 rounded-full shadow-inner"
                                         style={{ 
                                             backgroundImage: themeObj.previewBg || themeObj.background,
                                             backgroundSize: "cover",
