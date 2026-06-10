@@ -235,8 +235,8 @@ export default function MessageBubble({
                         isOnlyEmoji 
                             ? "text-muted-foreground/60 text-right" 
                             : isMine 
-                                ? "text-indigo-200/80 text-right" 
-                                : "text-muted-foreground/80 text-left"
+                                ? "text-white/80 text-right" 
+                                : "text-white/80 text-left"
                     }`}>
                         {msg.isEdited && <span className="opacity-75 mr-1 font-normal italic">(edited)</span>}
                         {formatBubbleTime(msg.createdAt)}
