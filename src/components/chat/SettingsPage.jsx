@@ -583,7 +583,7 @@ export default function SettingsPage({
                             <motion.div
                                 animate={{ x: ["-100%", "250%"] }}
                                 transition={{ duration: 6, repeat: Infinity, ease: "linear", repeatDelay: 4 }}
-                                className="absolute inset-y-0 w-1/3 bg-gradient-to-r from-transparent via-white/5 to-transparent skew-x-12 pointer-events-none"
+                                className="absolute inset-y-0 w-1/3 bg-linear-to-r from-transparent via-white/5 to-transparent skew-x-12 pointer-events-none"
                             />
                             <div className="p-2.5 rounded-lg bg-orange-500/10 text-orange-500 border border-orange-500/20 shrink-0">
                                 <User className="w-5 h-5" />
@@ -684,7 +684,7 @@ export default function SettingsPage({
                             <motion.div
                                 animate={{ x: ["-100%", "250%"] }}
                                 transition={{ duration: 6, repeat: Infinity, ease: "linear", repeatDelay: 4, delay: 2 }}
-                                className="absolute inset-y-0 w-1/3 bg-gradient-to-r from-transparent via-white/5 to-transparent skew-x-12 pointer-events-none"
+                                className="absolute inset-y-0 w-1/3 bg-linear-to-r from-transparent via-white/5 to-transparent skew-x-12 pointer-events-none"
                             />
                             <div className="p-2.5 rounded-lg bg-blue-500/10 text-blue-500 border border-blue-500/20 shrink-0">
                                 <ImageIcon className="w-5 h-5" />
@@ -898,7 +898,7 @@ export default function SettingsPage({
                             <motion.div
                                 animate={{ x: ["-100%", "250%"] }}
                                 transition={{ duration: 6, repeat: Infinity, ease: "linear", repeatDelay: 4, delay: 3 }}
-                                className="absolute inset-y-0 w-1/3 bg-gradient-to-r from-transparent via-white/5 to-transparent skew-x-12 pointer-events-none"
+                                className="absolute inset-y-0 w-1/3 bg-linear-to-r from-transparent via-white/5 to-transparent skew-x-12 pointer-events-none"
                             />
                             <div className="p-2.5 rounded-lg bg-violet-500/10 text-violet-500 border border-violet-500/20 shrink-0">
                                 <Palette className="w-5 h-5" />
@@ -1016,7 +1016,7 @@ export default function SettingsPage({
                             <motion.div
                                 animate={{ x: ["-100%", "250%"] }}
                                 transition={{ duration: 6, repeat: Infinity, ease: "linear", repeatDelay: 4, delay: 4 }}
-                                className="absolute inset-y-0 w-1/3 bg-gradient-to-r from-transparent via-white/5 to-transparent skew-x-12 pointer-events-none"
+                                className="absolute inset-y-0 w-1/3 bg-linear-to-r from-transparent via-white/5 to-transparent skew-x-12 pointer-events-none"
                             />
                             <div className="p-2.5 rounded-lg bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 shrink-0">
                                 <Shield className="w-5 h-5" />
@@ -1168,7 +1168,7 @@ export default function SettingsPage({
                             <motion.div
                                 animate={{ x: ["-100%", "250%"] }}
                                 transition={{ duration: 6, repeat: Infinity, ease: "linear", repeatDelay: 4, delay: 5 }}
-                                className="absolute inset-y-0 w-1/3 bg-gradient-to-r from-transparent via-white/5 to-transparent skew-x-12 pointer-events-none"
+                                className="absolute inset-y-0 w-1/3 bg-linear-to-r from-transparent via-white/5 to-transparent skew-x-12 pointer-events-none"
                             />
                             <div className="p-2.5 rounded-lg bg-rose-500/10 text-rose-500 border border-rose-500/20 shrink-0">
                                 <User className="w-5 h-5" />

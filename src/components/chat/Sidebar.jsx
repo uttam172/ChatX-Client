@@ -304,7 +304,7 @@ export default function Sidebar({
                     >
                         <Avatar user={currentUser} className="w-9 h-9 border border-border shadow-xs" />
                         {!isSidebarCollapsed && (
-                            <div className="flex flex-col overflow-hidden max-w-[170px] animate-fade-in">
+                            <div className="flex flex-col overflow-hidden max-w-42.5 animate-fade-in">
                                 <span className="text-sm font-semibold text-foreground truncate">
                                     {currentUser?.hikeId ? `${currentUser.hikeId}` : "User"}
                                 </span>

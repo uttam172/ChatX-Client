@@ -54,7 +54,7 @@ export default function MessageBubble({
             {/* Floating Reaction & Action Bar */}
             {hoveredMessageId === msg._id && (
                 <div className={`absolute top-1/2 -translate-y-1/2 flex items-center gap-1 bg-card border border-border rounded-full p-1 shadow-lg backdrop-blur-md z-30 transition-all ${
-                    isMine ? "-left-[95px]" : "-right-[95px]"
+                    isMine ? "-left-23.75" : "-right-23.75"
                 }`}>
                     {/* Smile reaction picker */}
                     <div className="relative">
@@ -178,7 +178,7 @@ export default function MessageBubble({
                         className={isOnlyEmoji
                             ? `relative p-0 select-none bg-transparent border-none shadow-none ${isMine ? "text-right" : "text-left"}`
                             : `px-4 py-2.5 rounded-2xl shadow-md relative ${isMine
-                                ? (theme.bubbleSent || "bg-gradient-to-br from-indigo-600 via-indigo-700 to-purple-600 text-white rounded-br-sm shadow-[0_4px_15px_rgba(99,102,241,0.2)]")
+                                ? (theme.bubbleSent || "bg-linear-to-br from-indigo-600 via-indigo-700 to-purple-600 text-white rounded-br-sm shadow-[0_4px_15px_rgba(99,102,241,0.2)]")
                                 : (theme.bubbleReceived || "bg-slate-900/35 backdrop-blur-md text-foreground rounded-bl-sm border border-slate-800/80 shadow-[0_4px_15px_rgba(0,0,0,0.15)]")}`}
                     >
                 {/* Reply Quote Block inside bubble */}

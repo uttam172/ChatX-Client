@@ -196,7 +196,7 @@ export default function ChatDetailsPage({
                                 >
                                     {copied ? (
                                         <>
-                                            <Check className="w-3.5 h-3.5 text-emerald-500 stroke-[3]" />
+                                            <Check className="w-3.5 h-3.5 text-emerald-500 stroke-3" />
                                             Copied Public Key
                                         </>
                                     ) : (

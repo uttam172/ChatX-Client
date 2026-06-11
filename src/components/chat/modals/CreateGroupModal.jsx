@@ -66,7 +66,7 @@ export default function CreateGroupModal({
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.95, y: 10 }}
                 transition={{ type: "spring", duration: 0.4 }}
-                className="bg-card border border-border rounded-2xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col h-[600px]"
+                className="bg-card border border-border rounded-2xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col h-150"
             >
                 {/* Modal Header */}
                 <div className="p-4 border-b border-border flex items-center justify-between bg-muted/20">
@@ -147,7 +147,7 @@ export default function CreateGroupModal({
                                             <div className={`w-5 h-5 rounded-full border flex items-center justify-center shrink-0 transition-colors ${
                                                 isSelected ? "bg-indigo-600 border-indigo-600 text-white" : "border-border bg-card"
                                             }`}>
-                                                {isSelected && <Check className="w-3 h-3 stroke-[3]" />}
+                                                {isSelected && <Check className="w-3 h-3 stroke-3" />}
                                             </div>
                                         </div>
                                     );

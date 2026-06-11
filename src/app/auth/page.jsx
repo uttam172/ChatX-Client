@@ -202,7 +202,7 @@ export default function AuthPage() {
 
             {/* Sleek structural grid pattern overlay for extra visual depth */}
             <div
-                className="absolute inset-0 bg-[linear-gradient(to_right,#e2e8f0_1px,transparent_1px),linear-gradient(to_bottom,#e2e8f0_1px,transparent_1px)] dark:bg-[linear-gradient(to_right,#0c0f1d_1px,transparent_1px),linear-gradient(to_bottom,#0c0f1d_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_50%,#000_70%,transparent_100%)] opacity-40 pointer-events-none"
+                className="absolute inset-0 bg-[linear-gradient(to_right,#e2e8f0_1px,transparent_1px),linear-gradient(to_bottom,#e2e8f0_1px,transparent_1px)] dark:bg-[linear-gradient(to_right,#0c0f1d_1px,transparent_1px),linear-gradient(to_bottom,#0c0f1d_1px,transparent_1px)] bg-size-[4rem_4rem] mask-[radial-gradient(ellipse_60%_50%_at_50%_50%,#000_70%,transparent_100%)] opacity-40 pointer-events-none"
             />
 
             {/* Smooth GPU-Accelerated Floating Blobs traveling randomly across the viewport */}
@@ -284,13 +284,13 @@ export default function AuthPage() {
                 initial={{ opacity: 0, scale: 0.96, y: 15 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-                className="w-full max-w-5xl bg-white/60 dark:bg-slate-950/40 border border-slate-200/60 dark:border-slate-800/60 backdrop-blur-3xl rounded-3xl z-10 mx-4 shadow-[0_0_80px_-15px_rgba(99,102,241,0.2)] grid grid-cols-1 md:grid-cols-12 overflow-hidden relative min-h-[600px]"
+                className="w-full max-w-5xl bg-white/60 dark:bg-slate-950/40 border border-slate-200/60 dark:border-slate-800/60 backdrop-blur-3xl rounded-3xl z-10 mx-4 shadow-[0_0_80px_-15px_rgba(99,102,241,0.2)] grid grid-cols-1 md:grid-cols-12 overflow-hidden relative min-h-150"
             >
                 {/* Subtle internal glowing border shine effect */}
                 <div className="absolute inset-0 border border-slate-900/5 dark:border-white/5 rounded-3xl pointer-events-none" />
 
                 {/* LEFT COLUMN: Majestic static/animated illustration column (Desktop only) */}
-                <div className="hidden md:flex md:col-span-6 flex-col justify-center items-center p-12 bg-gradient-to-br from-slate-100/60 via-white/30 to-indigo-50/15 dark:from-slate-950/60 dark:via-slate-900/30 dark:to-indigo-950/15 border-r border-slate-200/40 dark:border-slate-800/40 relative overflow-hidden">
+                <div className="hidden md:flex md:col-span-6 flex-col justify-center items-center p-12 bg-linear-to-br from-slate-100/60 via-white/30 to-indigo-50/15 dark:from-slate-950/60 dark:via-slate-900/30 dark:to-indigo-950/15 border-r border-slate-200/40 dark:border-slate-800/40 relative overflow-hidden">
 
                     {/* Subtle animated light reflection overlay */}
                     <motion.div
@@ -324,7 +324,7 @@ export default function AuthPage() {
                         transition={{ delay: 0.25, duration: 0.5 }}
                         className="text-center mt-8 relative z-10"
                     >
-                        <h2 className="text-2xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-slate-800 via-slate-600 to-slate-500 dark:from-white dark:via-slate-100 dark:to-slate-400">
+                        <h2 className="text-2xl font-extrabold tracking-tight text-transparent bg-clip-text bg-linear-to-r from-slate-800 via-slate-600 to-slate-500 dark:from-white dark:via-slate-100 dark:to-slate-400">
                             Secure E2EE Messaging
                         </h2>
                         <p className="text-sm text-slate-500 dark:text-slate-400 mt-2.5 max-w-xs leading-relaxed">
