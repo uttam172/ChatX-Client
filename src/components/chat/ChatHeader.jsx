@@ -27,7 +27,7 @@ export default function ChatHeader({
     const isChatHidden = chatSettings.find(s => isSameId(s.peerId, activeChat._id) && s.isHidden);
 
     return (
-        <div className="h-16 border-b border-border flex items-center justify-between px-6 bg-card/80 backdrop-blur-md z-10 shadow-sm">
+        <div className="h-16 w-[95%] mx-auto mt-3 flex items-center justify-between px-6 rounded-full bg-white/70 dark:bg-black from-65% to-transparent backdrop-blurmd z-10">
             <div className="flex items-center gap-3">
                 {/* Mobile Back Button */}
                 <button
@@ -87,7 +87,7 @@ export default function ChatHeader({
                     <>
                         <button
                             onClick={() => startCall("voice")}
-                            className="p-1.5 rounded-full hover:bg-muted hover:text-indigo-500 transition-colors cursor-pointer"
+                            className="h-10 w-10 p-1.5 flex justify-center items-center rounded-full hover:bg-muted hover:text-indigo-500 transition-colors cursor-pointer"
                             title="Voice Call"
                         >
                             <AnimatedIcon name="Phone" animation="bounce" size={20} />
@@ -95,7 +95,7 @@ export default function ChatHeader({
 
                         <button
                             onClick={() => startCall("video")}
-                            className="p-1.5 rounded-full hover:bg-muted hover:text-indigo-500 transition-colors cursor-pointer"
+                            className="h-10 w-10 p-1.5 flex justify-center items-center rounded-full hover:bg-muted hover:text-indigo-500 transition-colors cursor-pointer"
                             title="Video Call"
                         >
                             <AnimatedIcon name="Video" animation="bounce" size={20} />
@@ -106,7 +106,7 @@ export default function ChatHeader({
                 <div className="relative">
                     <button
                         onClick={() => setIsMenuOpen(prev => !prev)}
-                        className="hover:text-indigo-500 transition-colors p-1.5 rounded-full hover:bg-muted cursor-pointer"
+                        className="h-10 w-10 flex justify-center items-center hover:text-indigo-500 transition-colors p-1.5 rounded-full hover:bg-muted cursor-pointer"
                         title="More Options"
                     >
                         <AnimatedIcon name="MoreVertical" animation="scale" size={20} />

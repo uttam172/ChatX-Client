@@ -85,7 +85,7 @@ export default function ChatArea({
         >
             {/* Image Background Dark Overlay */}
             {isImageBg && (
-                <div className="absolute inset-0 bg-slate-950/45 pointer-events-none z-0" />
+                <div className="absolute inset-0 pointer-events-none z-0" />
             )}
             {/* Drag and Drop Blur Dropzone Overlay */}
             {isDraggingFile && (

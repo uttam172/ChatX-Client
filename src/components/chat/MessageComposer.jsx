@@ -125,7 +125,7 @@ export default function MessageComposer({
         <>
             {/* Replying Quote Composer Preview */}
             {replyingToMessage && (
-                <div className="bg-card border-t border-x border-border max-w-4xl mx-auto rounded-t-2xl px-5 py-3 flex items-center justify-between gap-4 animate-slide-up shadow-xs">
+                <div className="bg-card max-w-4xl mx-auto rounded-t-2xl px-5 py-3 flex items-center justify-between gap-4 animate-slide-up shadow-xs">
                     <div className="flex items-center gap-2.5 overflow-hidden">
                         <div className="w-1 border-l-4 border-indigo-500 h-8 rounded-full shrink-0" />
                         <div className="flex flex-col truncate">
@@ -245,7 +245,7 @@ export default function MessageComposer({
             {/* Input Bar */}
             <form
                 onSubmit={sendMessage}
-                className={`p-4 bg-card/80 backdrop-blur-md border-t border-border ${replyingToMessage || isUploading || pendingFile ? "rounded-b-2xl border-t-0" : ""}`}
+                className={`p-4 bg-linear-to-t from-white dark:from-black via-white/75 dark:via-black/75 to-transparent ${replyingToMessage || isUploading || pendingFile ? "rounded-b-2xl border-t-0" : ""}`}
             >
                 <div className="flex items-center gap-2 max-w-4xl mx-auto">
                     {/* Nudge Button */}
@@ -276,6 +276,7 @@ export default function MessageComposer({
                             <AnimatedIcon name="Paperclip" animation="scale" size={20} />
                         )}
                     </motion.button>
+
                     <input
                         type="file"
                         ref={fileInputRef}
@@ -283,7 +284,7 @@ export default function MessageComposer({
                         className="hidden"
                     />
 
-                    <div className="flex-1 relative">
+                    <div className="flex-1 flex justify-center items-center relative">
                         <textarea
                             ref={messageInputRef}
                             rows={1}
@@ -293,12 +294,12 @@ export default function MessageComposer({
                             onChange={handleTextareaChange}
                             onPaste={handlePaste}
                             disabled={isSending || isUploading}
-                            className={`w-full pl-4 pr-12 py-3 rounded-2xl bg-muted text-foreground focus:outline-none focus:ring-2 border border-transparent text-sm disabled:opacity-50 transition-all duration-300 resize-none overflow-y-auto max-h-32 ${ringColorClass}`}
+                            className={`w-full pl-4 pr-12 py-3 rounded-full bg-muted text-foreground focus:outline-none focus:ring-2 border border-transparent text-sm disabled:opacity-50 transition-all duration-300 resize-none overflow-y-auto max-h-32 ${ringColorClass}`}
                         />
                         <button
                             type="submit"
                             disabled={isSending || isUploading || (!pendingFile && !messageInput.trim())}
-                            className={`absolute right-2 bottom-2.5 w-8 h-8 flex items-center justify-center disabled:opacity-40 text-white rounded-full transition-colors cursor-pointer ${accentSolidBgClass}`}
+                            className={`absolute right-2 w-8 h-8 flex items-center justify-center disabled:opacity-40 text-white rounded-full transition-colors cursor-pointer ${accentSolidBgClass}`}
                         >
                             {isSending || isUploading ? (
                                 <AnimatedIcon name="Loader2" animation="spin" size={16} />
