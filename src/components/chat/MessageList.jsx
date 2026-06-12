@@ -139,6 +139,17 @@ export default function MessageList({
                                         {isMine ? "You sent a nudge!" : `${activeChat?.hikeId || "Someone"} sent you a nudge!`}
                                     </span>
                                 </motion.div>
+                            ) : msg.isSystemEvent ? (
+                                <motion.div
+                                    initial={{ opacity: 0, scale: 0.9 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    transition={{ duration: 0.2 }}
+                                    className="self-center my-2.5 px-4 py-2 rounded-full bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 text-xs flex items-center gap-2 shadow-sm font-medium text-center max-w-[80%]"
+                                >
+                                    <span>
+                                        {isMine ? "You" : (activeChat?.isGroup ? (msg.senderHikeId || "Someone") : (activeChat?.hikeId || "Someone"))} {msg.text}
+                                    </span>
+                                </motion.div>
                             ) : (
                                 <MessageBubble
                                     msg={msg}

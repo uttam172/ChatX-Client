@@ -912,8 +912,8 @@ export default function ChatPage() {
                 }
             }
 
-            let decryptedText = msg.isNudge ? "⚡ Sent a Nudge!" : "🔒 [Encrypted Message]";
-            if (isPeerMessage && !msg.isNudge) {
+            let decryptedText = msg.isNudge ? "⚡ Sent a Nudge!" : (msg.isSystemEvent ? `changed the background to ${msg.systemEventData}` : "🔒 [Encrypted Message]");
+            if (isPeerMessage && !msg.isNudge && !msg.isSystemEvent) {
                 try {
                     const privateKey = await getPrivateKey(parsedUser.hikeId);
                     if (privateKey) {
@@ -981,6 +981,18 @@ export default function ChatPage() {
 
                 if (isActive) {
                     setMessages(prev => [...prev, { ...msg, text: "⚡ Sent a Nudge!" }]);
+                    if (!isGroupMsg) {
+                        const socketObj = getSocket();
+                        socketObj?.emit("mark_read", { senderId: msg.senderId });
+                    }
+                }
+            } else if (msg.isSystemEvent) {
+                if (msg.systemEventType === 'BACKGROUND_CHANGED') {
+                    fetchChatSettings();
+                }
+                if (isActive) {
+                    const newMsg = { ...msg, text: decryptedText, read: true };
+                    setMessages(prev => [...prev, newMsg]);
                     if (!isGroupMsg) {
                         const socketObj = getSocket();
                         socketObj?.emit("mark_read", { senderId: msg.senderId });
