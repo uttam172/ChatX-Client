@@ -181,7 +181,7 @@ export default function Sidebar({
                                 setSearchQuery(e.target.value);
                                 setIsSearching(true);
                             }}
-                            placeholder="Search by Hike ID or email…"
+                            placeholder="Search by ChatX ID or email…"
                             className="w-full pl-9 pr-8 py-2 rounded-xl bg-muted text-foreground focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500/80 border border-transparent transition-all duration-300 text-sm focus:shadow-[0_0_10px_rgba(99,102,241,0.15)]"
                         />
                         {searchQuery && (
