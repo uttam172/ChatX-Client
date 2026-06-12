@@ -432,6 +432,7 @@ export default function ChatPage() {
             const decrypted = await Promise.all(
                 historyMessages.map(async (msg) => {
                     if (msg.isNudge) return { ...msg, text: "⚡ Sent a Nudge!" };
+                    if (msg.isSystemEvent) return { ...msg, text: `changed the background to ${msg.systemEventData}` };
                     const isMine = isSameId(msg.senderId, parsedUser);
 
                     if (peer.isGroup) {
@@ -555,6 +556,15 @@ export default function ChatPage() {
                     setDecryptedLastMessages(prev => ({
                         ...prev,
                         [chat._id]: { text: `${prefix}⚡ Sent a Nudge!`, msgId: msg._id }
+                    }));
+                    continue;
+                }
+
+                if (msg.isSystemEvent) {
+                    const senderName = isMine ? "You" : (msg.senderHikeId || (typeof msg.senderId === 'object' && msg.senderId?.hikeId) || "User");
+                    setDecryptedLastMessages(prev => ({
+                        ...prev,
+                        [chat._id]: { text: `${senderName} changed the background to ${msg.systemEventData}`, msgId: msg._id }
                     }));
                     continue;
                 }
