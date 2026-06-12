@@ -249,7 +249,7 @@ export default function MessageBubble({
                         initial={{ opacity: 0, scale: 0.75, y: 5 }}
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.75, y: 5 }}
-                        className={`absolute -bottom-2.5 flex items-center gap-0.5 bg-card/95 border border-border shadow-md rounded-full px-1.5 py-0.5 z-20 select-none backdrop-blur-md transition-all hover:scale-110 duration-150 cursor-pointer ${
+                        className={`absolute -bottom-4 flex items-center gap-0.5 bg-card/75 border border-border shadow-md rounded-full px-1.5 py-0.5 z-20 select-none backdrop-blur-md transition-all hover:scale-110 duration-150 cursor-pointer ${
                             isMine ? "right-3.5" : "left-3.5"
                         }`}
                     >

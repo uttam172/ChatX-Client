@@ -27,7 +27,7 @@ export default function ChatHeader({
     const isChatHidden = chatSettings.find(s => isSameId(s.peerId, activeChat._id) && s.isHidden);
 
     return (
-        <div className="h-16 w-[95%] mx-auto mt-3 flex items-center justify-between px-6 rounded-full bg-white/70 dark:bg-black from-65% to-transparent backdrop-blurmd z-10">
+        <div className="h-16 w-[95%] mx-auto mt-3 flex items-center justify-between px-6 rounded-full bg-muted/60 saturate-200 backdrop-blurmd z-10">
             <div className="flex items-center gap-3">
                 {/* Mobile Back Button */}
                 <button

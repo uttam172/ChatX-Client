@@ -62,7 +62,7 @@ export default function AuthPage() {
     }, [setTheme]);
 
     const [formData, setFormData] = useState({
-        identifier: "",  // email OR hikeId (login)
+        identifier: "",  // email OR chatxId (login)
         email: "",       // only used during signup
         password: "",
         hikeId: "",
@@ -399,7 +399,7 @@ export default function AuthPage() {
                                     <AnimatedIcon name="User" animation="scale" size={20} className="absolute left-3.5 top-3.5 text-slate-400 dark:text-slate-500 group-hover:text-indigo-500 dark:group-hover:text-indigo-400 transition-colors" />
                                     <input
                                         type="text"
-                                        placeholder="Hike ID (e.g. alex)"
+                                        placeholder="ChatX ID (e.g. alex)"
                                         value={formData.hikeId}
                                         onChange={(e) => setFormData({ ...formData, hikeId: e.target.value })}
                                         className="w-full pl-11 pr-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white/50 dark:bg-slate-950/40 focus:bg-white/90 dark:focus:bg-slate-950/80 focus:border-indigo-500/80 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition-all duration-300 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:shadow-[0_0_15px_rgba(99,102,241,0.1)] dark:focus:shadow-[0_0_15px_rgba(99,102,241,0.2)]"
@@ -407,13 +407,13 @@ export default function AuthPage() {
                                     />
                                 </div>
                             )}
-                            {/* LOGIN: single identifier field (email OR hikeId) */}
+                            {/* LOGIN: single identifier field (email OR chatxId) */}
                             {isLogin && (
                                 <div className="relative group">
                                     <AnimatedIcon name="Mail" animation="shake" size={20} className="absolute left-3.5 top-3.5 text-slate-400 dark:text-slate-500 group-hover:text-indigo-500 dark:group-hover:text-indigo-400 transition-colors" />
                                     <input
                                         type="text"
-                                        placeholder="Email or Hike ID (e.g. alex)"
+                                        placeholder="Email or ChatX ID (e.g. alex)"
                                         value={formData.identifier}
                                         onChange={(e) => setFormData({ ...formData, identifier: e.target.value })}
                                         className="w-full pl-11 pr-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white/50 dark:bg-slate-950/40 focus:bg-white/90 dark:focus:bg-slate-950/80 focus:border-indigo-500/80 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition-all duration-300 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:shadow-[0_0_15px_rgba(99,102,241,0.1)] dark:focus:shadow-[0_0_15px_rgba(99,102,241,0.2)]"

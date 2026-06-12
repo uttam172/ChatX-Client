@@ -245,7 +245,7 @@ export default function MessageComposer({
             {/* Input Bar */}
             <form
                 onSubmit={sendMessage}
-                className={`p-4 bg-linear-to-t from-white dark:from-black via-white/75 dark:via-black/75 to-transparent ${replyingToMessage || isUploading || pendingFile ? "rounded-b-2xl border-t-0" : ""}`}
+                className={`p-4 bg-linear-to-t from-muted via-white/75 dark:via-muted/75 to-transparent ${replyingToMessage || isUploading || pendingFile ? "rounded-b-2xl border-t-0" : ""}`}
             >
                 <div className="flex items-center gap-2 max-w-4xl mx-auto">
                     {/* Nudge Button */}
